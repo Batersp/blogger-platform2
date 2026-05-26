@@ -6,10 +6,29 @@ import { User, UserDocument, type UserModelType } from '../domain/user.entity';
 export class UsersRepository {
   constructor(@InjectModel(User.name) private UserModel: UserModelType) {}
 
+  async findByLogin(login: string): Promise<UserDocument | null> {
+    return this.UserModel.findOne({ login });
+  }
+  async findByEmail(email: string): Promise<UserDocument | null> {
+    return this.UserModel.findOne({ email });
+  }
+
   async findById(id: string): Promise<UserDocument | null> {
     return this.UserModel.findOne({
       _id: id,
       deletedAt: null,
+    });
+  }
+
+  async findByConfirmationCode(code: string): Promise<UserDocument | null> {
+    return this.UserModel.findOne({
+      'emailConfirmation.confirmationCode': code,
+    });
+  }
+
+  async findByRecoveryCode(code: string): Promise<UserDocument | null> {
+    return this.UserModel.findOne({
+      'passwordRecovery.recoveryCode': code,
     });
   }
 

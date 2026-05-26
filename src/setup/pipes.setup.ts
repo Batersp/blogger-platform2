@@ -1,4 +1,36 @@
-import { INestApplication, ValidationPipe } from '@nestjs/common';
+import {
+  BadRequestException,
+  INestApplication,
+  ValidationError,
+  ValidationPipe,
+} from '@nestjs/common';
+import {
+  DomainException,
+  Extension,
+} from '../core/exceptions/domain-exceptions';
+import { DomainExceptionCode } from '../core/exceptions/domain-exception-codes';
+
+export const errorFormatter = (
+  errors: ValidationError[],
+  errorsForResponse: Extension[] = [], // убираем errorMessage: any
+): Extension[] => {
+  for (const error of errors) {
+    if (!error.constraints && error.children?.length) {
+      errorFormatter(error.children, errorsForResponse);
+    } else if (error.constraints) {
+      for (const key of Object.keys(error.constraints)) {
+        errorsForResponse.push({
+          message: error.constraints[key]
+            ? `${error.constraints[key]}; Received value: ${error?.value}`
+            : '',
+          field: error.property,
+        });
+      }
+    }
+  }
+
+  return errorsForResponse;
+};
 
 export function pipesSetup(app: INestApplication) {
   //Глобальный пайп для валидации и трансформации входящих данных.
@@ -9,6 +41,15 @@ export function pipesSetup(app: INestApplication) {
       //соответственно применятся значения по-умолчанию
       //и методы классов dto
       transform: true,
+      stopAtFirstError: true,
+      exceptionFactory: (errors) => {
+        const formattedErrors = errorFormatter(errors);
+
+        throw new DomainException({
+          code: DomainExceptionCode.ValidationError,
+          extensions: formattedErrors,
+        });
+      },
     }),
   );
 }

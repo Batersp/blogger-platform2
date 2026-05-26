@@ -3,11 +3,11 @@ import bcrypt from 'bcrypt';
 
 @Injectable()
 export class BcryptService {
-  createHash(value: string): string {
+  async createHash(value: string): Promise<string> {
     return bcrypt.hashSync(value, 12);
   }
 
-  compareSync(value1: string, value2: string): boolean {
+  async compareSync(value1: string, value2: string): Promise<boolean> {
     return bcrypt.compareSync(value1, value2);
   }
 }
