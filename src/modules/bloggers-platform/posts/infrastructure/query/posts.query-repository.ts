@@ -13,6 +13,7 @@ export class PostsQueryRepository {
   async getByIdOrNotFoundFail(id: string): Promise<PostViewDto> {
     const post = await this.PostModel.findOne({
       _id: id,
+      deletedAt: null,
     });
 
     if (!post) {

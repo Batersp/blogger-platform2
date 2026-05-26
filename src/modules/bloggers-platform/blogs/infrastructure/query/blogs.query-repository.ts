@@ -13,6 +13,7 @@ export class BlogsQueryRepository {
   async getByIdOrNotFoundFail(id: string): Promise<BlogViewDto> {
     const blog = await this.BlogModel.findOne({
       _id: id,
+      deletedAt: null,
     });
 
     if (!blog) {

@@ -15,6 +15,7 @@ export class CommentsQueryRepository {
   async getByIdOrNotFoundFail(id: string): Promise<CommentViewDto> {
     const comment = await this.CommentModel.findOne({
       _id: id,
+      deletedAt: null,
     });
 
     if (!comment) {
