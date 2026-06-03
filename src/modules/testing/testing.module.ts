@@ -15,6 +15,14 @@ import {
   CommentsSchema,
 } from '../bloggers-platform/comments/domain/comment.entity';
 import { User, UserSchema } from '../user-accounts/domain/user.entity';
+import {
+  CommentLike,
+  CommentLikeSchema,
+} from '../bloggers-platform/comments/domain/commentLike.entity';
+import {
+  PostLike,
+  PostLikeSchema,
+} from '../bloggers-platform/posts/domain/postLike.entity';
 
 @Module({
   imports: [
@@ -23,6 +31,8 @@ import { User, UserSchema } from '../user-accounts/domain/user.entity';
       { name: Blog.name, schema: BlogSchema },
       { name: Post.name, schema: PostSchema },
       { name: Comment.name, schema: CommentsSchema },
+      { name: CommentLike.name, schema: CommentLikeSchema },
+      { name: PostLike.name, schema: PostLikeSchema },
     ]),
   ],
   controllers: [TestingController],

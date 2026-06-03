@@ -16,6 +16,14 @@ import {
   Comment,
   type CommentModelType,
 } from '../../bloggers-platform/comments/domain/comment.entity';
+import {
+  CommentLike,
+  type CommentLikeModelType,
+} from '../../bloggers-platform/comments/domain/commentLike.entity';
+import {
+  PostLike,
+  type PostLikeModelType,
+} from '../../bloggers-platform/posts/domain/postLike.entity';
 
 @Injectable()
 export class TestingService {
@@ -24,6 +32,10 @@ export class TestingService {
     @InjectModel(Blog.name) private BlogModel: BlogModelType,
     @InjectModel(Post.name) private PostModel: PostModelType,
     @InjectModel(Comment.name) private CommentModel: CommentModelType,
+    @InjectModel(CommentLike.name)
+    private CommentLikeModel: CommentLikeModelType,
+    @InjectModel(PostLike.name)
+    private PostLikeModel: PostLikeModelType,
   ) {}
 
   async deleteAllData(): Promise<void> {
@@ -32,6 +44,8 @@ export class TestingService {
       this.BlogModel.deleteMany({}),
       this.PostModel.deleteMany({}),
       this.CommentModel.deleteMany({}),
+      this.CommentLikeModel.deleteMany({}),
+      this.PostLikeModel.deleteMany({}),
     ]);
   }
 }

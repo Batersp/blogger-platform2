@@ -9,6 +9,7 @@ import {
   Post,
   Put,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import { GetBlogsQueryParams } from './input-dto/get-blogs-query-params.input-dto';
 import { PaginatedViewDto } from '../../../../core/dto/base.paginated.view-dto';
@@ -24,6 +25,10 @@ import { PostViewDto } from '../../posts/api/view-dto/posts.view-dto';
 import { GetPostsQueryParams } from '../../posts/api/input-dto/get-posts-query-params.input-dto';
 import { PostsQueryRepository } from '../../posts/infrastructure/query/posts.query-repository';
 import { PostService } from '../../posts/application/post.service';
+import { BasicAuthGuard } from '../../../user-accounts/guards/basic/basic-auth.guard';
+import { JwtOptionalAuthGuard } from '../../../user-accounts/guards/bearer/jwt-optional-auth.guard';
+import { ExtractUserFromRequest } from '../../../user-accounts/guards/decorators/extract-user-from-request.decorator';
+import { UserContextDto } from '../../../user-accounts/guards/dto/user-context.dto';
 
 @Controller('blogs')
 export class BlogsController {
@@ -47,21 +52,25 @@ export class BlogsController {
   }
 
   @Get(':id/posts')
+  @UseGuards(JwtOptionalAuthGuard)
   async getPostsForBlog(
     @Param('id') id: string,
     @Query() query: GetPostsQueryParams,
+    @ExtractUserFromRequest() user: UserContextDto | null,
   ): Promise<PaginatedViewDto<PostViewDto[]>> {
     await this.blogsQueryRepository.getByIdOrNotFoundFail(id);
-    return this.postsQueryRepository.getAll(query, id);
+    return this.postsQueryRepository.getAll(query, id, user?.id);
   }
 
   @Post()
+  @UseGuards(BasicAuthGuard)
   async create(@Body() body: CreateBlogInputDTO): Promise<BlogViewDto> {
     const blogId = await this.blogService.createBlog(body);
     return this.blogsQueryRepository.getByIdOrNotFoundFail(blogId);
   }
 
   @Post(':id/posts')
+  @UseGuards(BasicAuthGuard)
   async createPostForBlog(
     @Param('id') id: string,
     @Body() body: CreatePostForBlogInputDto,
@@ -73,6 +82,7 @@ export class BlogsController {
 
   @Put(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(BasicAuthGuard)
   async update(
     @Param('id') id: string,
     @Body() body: UpdateBlogInputDTO,
@@ -82,6 +92,7 @@ export class BlogsController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(BasicAuthGuard)
   async delete(@Param('id') id: string): Promise<void> {
     return this.blogService.deleteBlog(id);
   }

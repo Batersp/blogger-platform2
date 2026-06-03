@@ -32,6 +32,6 @@ import { AuthQueryRepository } from './infrastructure/query/auth.query-repositor
     LocalStrategy,
     JwtStrategy,
   ],
-  exports: [],
+  exports: [UsersRepository],
 })
 export class UserAccountsModule {}

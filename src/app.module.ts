@@ -10,10 +10,12 @@ import { APP_FILTER } from '@nestjs/core';
 import { AllHttpExceptionsFilter } from './core/exceptions/filters/all-exceptions.filter';
 import { DomainHttpExceptionsFilter } from './core/exceptions/filters/domain-exceptions.filter';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { configModule } from './dynamic-config-module';
 
 @Module({
   imports: [
-    MongooseModule.forRoot('mongodb://localhost:27017/nest-blogger-platform'),
+    configModule,
+    MongooseModule.forRoot(process.env.MONGODB_URI as string),
     UserAccountsModule,
     BloggersPlatformModule,
     CoreModule,

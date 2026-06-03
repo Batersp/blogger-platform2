@@ -14,14 +14,26 @@ import { CommentsController } from './comments/api/comments.controller';
 import { CommentService } from './comments/application/comment.service';
 import { CommentsQueryRepository } from './comments/infrastructure/query/comments.query-repository';
 import { Comment, CommentsSchema } from './comments/domain/comment.entity';
+import { CommentsRepository } from './comments/infrastructure/comments.repository';
+import { UserAccountsModule } from '../user-accounts/user-accounts.module';
+import {
+  CommentLike,
+  CommentLikeSchema,
+} from './comments/domain/commentLike.entity';
+import { CommentLikesRepository } from './comments/infrastructure/comment-likes.repository';
+import { PostLikesRepository } from './posts/infrastructure/post-likes.repository';
+import { PostLike, PostLikeSchema } from './posts/domain/postLike.entity';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: Blog.name, schema: BlogSchema },
       { name: Post.name, schema: PostSchema },
+      { name: PostLike.name, schema: PostLikeSchema },
       { name: Comment.name, schema: CommentsSchema },
+      { name: CommentLike.name, schema: CommentLikeSchema },
     ]),
+    UserAccountsModule,
   ],
   controllers: [BlogsController, PostsController, CommentsController],
   providers: [
@@ -30,9 +42,12 @@ import { Comment, CommentsSchema } from './comments/domain/comment.entity';
     BlogsQueryRepository,
     PostService,
     PostsRepository,
+    PostLikesRepository,
     PostsQueryRepository,
     CommentService,
     CommentsQueryRepository,
+    CommentsRepository,
+    CommentLikesRepository,
   ],
   exports: [],
 })
