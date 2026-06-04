@@ -12,35 +12,39 @@ import {
 } from '@nestjs/common';
 import { CreateUserInputDto } from './input-dto/users.input-dto';
 import { UserViewDto } from './view-dto/users.view-dto';
-import { UsersService } from '../application/user.service';
 import { UsersQueryRepository } from '../infrastructure/query/users.query-repository';
 import { GetUsersQueryParams } from './input-dto/get-users-query-params.input-dto';
 import { PaginatedViewDto } from '../../../core/dto/base.paginated.view-dto';
 import { BasicAuthGuard } from '../guards/basic/basic-auth.guard';
+import { CommandBus, QueryBus } from '@nestjs/cqrs';
+import { DeleteUserCommand } from '../application/usecases/delete-user.usecase';
+import { GetAllUsersQuery } from '../application/queries/get-users.query';
+import { CreateUserCommand } from '../application/usecases/create-user.usecase';
 
 @Controller('users')
 @UseGuards(BasicAuthGuard)
 export class UsersController {
   constructor(
-    private usersService: UsersService,
     private usersQueryRepository: UsersQueryRepository,
+    private commandBus: CommandBus,
+    private queryBus: QueryBus,
   ) {}
   @Get()
   async getAll(
     @Query() query: GetUsersQueryParams,
   ): Promise<PaginatedViewDto<UserViewDto[]>> {
-    return this.usersQueryRepository.getAll(query);
+    return this.queryBus.execute(new GetAllUsersQuery(query));
   }
 
   @Post()
   async create(@Body() body: CreateUserInputDto): Promise<UserViewDto> {
-    const userId = await this.usersService.createUser(body);
+    const userId = await this.commandBus.execute(new CreateUserCommand(body));
     return this.usersQueryRepository.getByIdOrNotFoundFail(userId);
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   async deleteUser(@Param('id') id: string): Promise<void> {
-    return this.usersService.deleteUser(id);
+    return this.commandBus.execute(new DeleteUserCommand(id));
   }
 }

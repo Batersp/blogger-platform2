@@ -1,27 +1,10 @@
 //dto для боди при создании юзера. Сюда могут быть добавлены декораторы swagger
 import { IsEmail, IsString, IsUUID, Length } from 'class-validator';
-import {
-  loginConstraints,
-  passwordConstraints,
-} from '../../domain/user.entity';
+import { passwordConstraints } from '../../domain/user.entity';
 import { Trim } from '../../../../core/decorators/transform/trim';
+import { CreateUserCommand } from '../../application/usecases/create-user.usecase';
 
-export class CreateUserInputDto {
-  @IsString()
-  @Length(loginConstraints.minLength, loginConstraints.maxLength)
-  @Trim()
-  login: string;
-
-  @IsString()
-  @Length(passwordConstraints.minLength, passwordConstraints.maxLength)
-  @Trim()
-  password: string;
-
-  @IsString()
-  @IsEmail()
-  @Trim()
-  email: string;
-}
+export class CreateUserInputDto extends CreateUserCommand {}
 
 export class ConfirmEmailInputDto {
   @IsString()

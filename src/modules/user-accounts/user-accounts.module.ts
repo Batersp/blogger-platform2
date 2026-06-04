@@ -12,6 +12,12 @@ import { JwtModule } from '@nestjs/jwt';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { JwtStrategy } from './guards/bearer/jwt.strategy';
 import { AuthQueryRepository } from './infrastructure/query/auth.query-repository';
+import { DeleteUserUseCase } from './application/usecases/delete-user.usecase';
+import { GetAllUsersQueryHandler } from './application/queries/get-users.query';
+import { CreateUserUseCase } from './application/usecases/create-user.usecase';
+
+const commandHandlers = [DeleteUserUseCase, CreateUserUseCase];
+const queryHandlers = [GetAllUsersQueryHandler];
 
 @Module({
   imports: [
@@ -31,6 +37,8 @@ import { AuthQueryRepository } from './infrastructure/query/auth.query-repositor
     AuthService,
     LocalStrategy,
     JwtStrategy,
+    ...commandHandlers,
+    ...queryHandlers,
   ],
   exports: [UsersRepository],
 })
