@@ -17,9 +17,9 @@ import { GetUsersQueryParams } from './input-dto/get-users-query-params.input-dt
 import { PaginatedViewDto } from '../../../core/dto/base.paginated.view-dto';
 import { BasicAuthGuard } from '../guards/basic/basic-auth.guard';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
-import { DeleteUserCommand } from '../application/usecases/delete-user.usecase';
-import { GetAllUsersQuery } from '../application/queries/get-users.query';
-import { CreateUserCommand } from '../application/usecases/create-user.usecase';
+import { DeleteUserCommand } from '../application/usecases/users/delete-user.usecase';
+import { GetAllUsersQuery } from '../application/queries/users/get-users.query';
+import { CreateUserCommand } from '../application/usecases/users/create-user.usecase';
 
 @Controller('users')
 @UseGuards(BasicAuthGuard)

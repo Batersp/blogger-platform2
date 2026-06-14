@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { UserContextDto } from '../guards/dto/user-context.dto';
 import { UsersRepository } from '../infrastructure/users.repository';
 import { BcryptService } from '../../../core/services/bcrypt.service';
@@ -11,14 +11,24 @@ import { EmailService } from '../../notifications/email.service';
 import { PasswordRecoveryDto } from '../dto/passwordRecovery.dto';
 import { CreateNewPasswordDto } from '../dto/createNewPassword.dto';
 import { DomainException } from '../../../core/exceptions/domain-exceptions';
+import { CoreConfig } from '../../../core/core.config';
+import { SecurityDeviceService } from './securityDevice.service';
+import {
+  ACCESS_TOKEN_STRATEGY_INJECT_TOKEN,
+  REFRESH_TOKEN_STRATEGY_INJECT_TOKEN,
+} from '../constants/auth-tokens.inject-constants';
 
 @Injectable()
 export class AuthService {
   constructor(
     private usersRepository: UsersRepository,
     private bcryptService: BcryptService,
-    private jwtService: JwtService,
     private emailService: EmailService,
+    private securityDeviceService: SecurityDeviceService,
+    @Inject(ACCESS_TOKEN_STRATEGY_INJECT_TOKEN)
+    private accessTokenContext: JwtService,
+    @Inject(REFRESH_TOKEN_STRATEGY_INJECT_TOKEN)
+    private refreshTokenContext: JwtService,
   ) {}
 
   async validateUser(
@@ -44,12 +54,25 @@ export class AuthService {
 
   async login(
     userId: string,
+    ip: string,
+    deviceName: string = 'commonName',
   ): Promise<{ accessToken: string; refreshToken: string }> {
-    const accessToken = this.jwtService.sign({ id: userId });
-    const refreshToken = this.jwtService.sign(
-      { id: userId },
-      { secret: 'refresh-secret', expiresIn: '30d' },
-    );
+    const accessToken = this.accessTokenContext.sign({ id: userId });
+
+    const deviceId = crypto.randomUUID();
+    const refreshToken = this.refreshTokenContext.sign({ userId, deviceId });
+
+    const { iat, exp } = this.refreshTokenContext.decode(refreshToken);
+
+    await this.securityDeviceService.createSession({
+      userId,
+      deviceId,
+      iat: iat as number,
+      exp: exp as number,
+      deviceName,
+      ip,
+    });
+
     return {
       accessToken,
       refreshToken,

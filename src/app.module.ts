@@ -11,11 +11,20 @@ import { AllHttpExceptionsFilter } from './core/exceptions/filters/all-exception
 import { DomainHttpExceptionsFilter } from './core/exceptions/filters/domain-exceptions.filter';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { configModule } from './dynamic-config-module';
+import { CoreConfig } from './core/core.config';
 
 @Module({
   imports: [
     configModule,
-    MongooseModule.forRoot(process.env.MONGODB_URI as string),
+    MongooseModule.forRootAsync({
+      useFactory: (coreConfig: CoreConfig) => {
+        const uri = coreConfig.mongoURI;
+        return {
+          uri,
+        };
+      },
+      inject: [CoreConfig],
+    }),
     UserAccountsModule,
     BloggersPlatformModule,
     CoreModule,

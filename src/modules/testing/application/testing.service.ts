@@ -24,6 +24,10 @@ import {
   PostLike,
   type PostLikeModelType,
 } from '../../bloggers-platform/posts/domain/postLike.entity';
+import {
+  SecurityDevice,
+  type SecurityDeviceModelType,
+} from '../../user-accounts/domain/securityDevice.entity';
 
 @Injectable()
 export class TestingService {
@@ -36,6 +40,8 @@ export class TestingService {
     private CommentLikeModel: CommentLikeModelType,
     @InjectModel(PostLike.name)
     private PostLikeModel: PostLikeModelType,
+    @InjectModel(SecurityDevice.name)
+    private SecurityDeviceModel: SecurityDeviceModelType,
   ) {}
 
   async deleteAllData(): Promise<void> {
@@ -46,6 +52,7 @@ export class TestingService {
       this.CommentModel.deleteMany({}),
       this.CommentLikeModel.deleteMany({}),
       this.PostLikeModel.deleteMany({}),
+      this.SecurityDeviceModel.deleteMany({}),
     ]);
   }
 }

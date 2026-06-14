@@ -23,6 +23,10 @@ import {
   PostLike,
   PostLikeSchema,
 } from '../bloggers-platform/posts/domain/postLike.entity';
+import {
+  SecurityDevice,
+  SecurityDeviceSchema,
+} from '../user-accounts/domain/securityDevice.entity';
 
 @Module({
   imports: [
@@ -33,6 +37,7 @@ import {
       { name: Comment.name, schema: CommentsSchema },
       { name: CommentLike.name, schema: CommentLikeSchema },
       { name: PostLike.name, schema: PostLikeSchema },
+      { name: SecurityDevice.name, schema: SecurityDeviceSchema },
     ]),
   ],
   controllers: [TestingController],

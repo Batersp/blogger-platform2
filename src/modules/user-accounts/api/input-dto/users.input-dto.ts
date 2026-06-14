@@ -2,7 +2,7 @@
 import { IsEmail, IsString, IsUUID, Length } from 'class-validator';
 import { passwordConstraints } from '../../domain/user.entity';
 import { Trim } from '../../../../core/decorators/transform/trim';
-import { CreateUserCommand } from '../../application/usecases/create-user.usecase';
+import { CreateUserCommand } from '../../application/usecases/users/create-user.usecase';
 
 export class CreateUserInputDto extends CreateUserCommand {}
 

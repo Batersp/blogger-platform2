@@ -5,6 +5,7 @@ import {
   HttpCode,
   HttpStatus,
   Post,
+  Req,
   Res,
   UseGuards,
 } from '@nestjs/common';
@@ -12,7 +13,7 @@ import { LocalAuthGuard } from '../guards/local/local-auth.guard';
 import { ExtractUserFromRequest } from '../guards/decorators/extract-user-from-request.decorator';
 import { UserContextDto } from '../guards/dto/user-context.dto';
 import { AuthService } from '../application/auth.service';
-import { type Response } from 'express';
+import { type Response, type Request } from 'express';
 import {
   ConfirmEmailInputDto,
   CreateNewPasswordInputDto,
@@ -25,6 +26,12 @@ import { JwtAuthGuard } from '../guards/bearer/jwt-auth.guard';
 import { MeViewDto } from './view-dto/users.view-dto';
 import { AuthQueryRepository } from '../infrastructure/query/auth.query-repository';
 import { ThrottlerGuard } from '@nestjs/throttler';
+import { CommandBus } from '@nestjs/cqrs';
+import { RefreshTokenCommand } from '../application/usecases/auth/refreshToken.usecase';
+import { RefreshTokenGuard } from '../guards/refresh-token/refresh-token.guard';
+import { ExtractRefreshTokenPayload } from '../guards/decorators/extract-refresh-token-payload.decorator';
+import { RefreshTokenPayloadDto } from '../guards/dto/refreshToken-payload.dto';
+import { LogoutCommand } from '../application/usecases/auth/logout.usecase';
 
 @Controller('auth')
 export class AuthController {
@@ -32,16 +39,23 @@ export class AuthController {
     private authService: AuthService,
     private usersService: UsersService,
     private authQueryRepository: AuthQueryRepository,
+    private commandBus: CommandBus,
   ) {}
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @UseGuards(LocalAuthGuard)
+  @UseGuards(ThrottlerGuard)
   async login(
     @ExtractUserFromRequest() user: UserContextDto,
     @Res({ passthrough: true }) res: Response,
+    @Req() req: Request,
   ): Promise<{ accessToken: string }> {
-    const { accessToken, refreshToken } = await this.authService.login(user.id);
+    const { accessToken, refreshToken } = await this.authService.login(
+      user.id,
+      req.ip!,
+      req.headers['user-agent'],
+    );
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true, // недоступен из JS
       secure: true, // только HTTPS
@@ -90,6 +104,51 @@ export class AuthController {
     @Body() body: CreateNewPasswordInputDto,
   ): Promise<void> {
     return this.authService.createNewPassword(body);
+  }
+
+  @Post('refresh-token')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(RefreshTokenGuard)
+  async refreshToken(
+    @ExtractRefreshTokenPayload() payload: RefreshTokenPayloadDto,
+    @Res({ passthrough: true }) res: Response,
+    @Req() req: Request,
+  ): Promise<{ accessToken: string }> {
+    const { accessToken, refreshToken } = await this.commandBus.execute(
+      new RefreshTokenCommand({
+        userId: payload.userId,
+        deviceId: payload.deviceId,
+        iat: payload.iat,
+        ip: req.ip!,
+      }),
+    );
+
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'strict',
+      maxAge: 30 * 24 * 60 * 60 * 1000,
+    });
+
+    return { accessToken };
+  }
+
+  @Post('logout')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(RefreshTokenGuard)
+  async logout(
+    @ExtractRefreshTokenPayload() payload: RefreshTokenPayloadDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    await this.commandBus.execute(
+      new LogoutCommand({
+        deviceId: payload.deviceId,
+        userId: payload.userId,
+        iat: payload.iat,
+      }),
+    );
+
+    res.clearCookie('refreshToken');
   }
 
   @Get('me')

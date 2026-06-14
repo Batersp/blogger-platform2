@@ -1,16 +1,16 @@
 import { Command, CommandHandler, ICommandHandler } from '@nestjs/cqrs';
-import { DomainException } from '../../../../core/exceptions/domain-exceptions';
-import { UsersRepository } from '../../infrastructure/users.repository';
-import { BcryptService } from '../../../../core/services/bcrypt.service';
+import { DomainException } from '../../../../../core/exceptions/domain-exceptions';
+import { UsersRepository } from '../../../infrastructure/users.repository';
+import { BcryptService } from '../../../../../core/services/bcrypt.service';
 import { InjectModel } from '@nestjs/mongoose';
 import {
   loginConstraints,
   passwordConstraints,
   User,
   type UserModelType,
-} from '../../domain/user.entity';
+} from '../../../domain/user.entity';
 import { IsEmail, IsString, Length } from 'class-validator';
-import { Trim } from '../../../../core/decorators/transform/trim';
+import { Trim } from '../../../../../core/decorators/transform/trim';
 
 export class CreateUserCommand extends Command<string> {
   @IsString()
