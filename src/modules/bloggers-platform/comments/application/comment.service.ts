@@ -33,7 +33,7 @@ export class CommentService {
       content,
       postId,
       commentatorInfo: {
-        userId: user._id.toString(),
+        userId: user.id,
         userLogin: user.login,
       },
     });

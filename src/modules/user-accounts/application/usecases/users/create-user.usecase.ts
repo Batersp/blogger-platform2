@@ -2,15 +2,19 @@ import { Command, CommandHandler, ICommandHandler } from '@nestjs/cqrs';
 import { DomainException } from '../../../../../core/exceptions/domain-exceptions';
 import { UsersRepository } from '../../../infrastructure/users.repository';
 import { BcryptService } from '../../../../../core/services/bcrypt.service';
-import { InjectModel } from '@nestjs/mongoose';
 import {
   loginConstraints,
   passwordConstraints,
   User,
-  type UserModelType,
 } from '../../../domain/user.entity';
 import { IsEmail, IsString, Length } from 'class-validator';
 import { Trim } from '../../../../../core/decorators/transform/trim';
+
+interface CreateUserCommandProps {
+  login: string;
+  password: string;
+  email: string;
+}
 
 export class CreateUserCommand extends Command<string> {
   @IsString()
@@ -28,7 +32,7 @@ export class CreateUserCommand extends Command<string> {
   @Trim()
   email: string;
 
-  constructor(public init: CreateUserCommand) {
+  constructor(public init: CreateUserCommandProps) {
     super();
     Object.assign(this, init);
   }
@@ -40,7 +44,6 @@ export class CreateUserUseCase implements ICommandHandler<
   string
 > {
   constructor(
-    @InjectModel(User.name) private UserModel: UserModelType,
     private usersRepository: UsersRepository,
     private bcryptService: BcryptService,
   ) {}
@@ -60,13 +63,13 @@ export class CreateUserUseCase implements ICommandHandler<
       ]);
     }
     const passwordHash = await this.bcryptService.createHash(password);
-    const user = this.UserModel.createInstance({
+    const user = User.createInstance({
       login,
       email,
       passwordHash,
     });
 
-    await this.usersRepository.save(user);
-    return user._id.toString();
+    await this.usersRepository.create(user);
+    return user.id;
   }
 }

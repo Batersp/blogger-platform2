@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common';
-import { User, UserSchema } from './domain/user.entity';
 import { MongooseModule } from '@nestjs/mongoose';
 import { UsersRepository } from './infrastructure/users.repository';
 import { UsersQueryRepository } from './infrastructure/query/users.query-repository';
@@ -16,10 +15,6 @@ import { DeleteUserUseCase } from './application/usecases/users/delete-user.usec
 import { GetAllUsersQueryHandler } from './application/queries/users/get-users.query';
 import { CreateUserUseCase } from './application/usecases/users/create-user.usecase';
 import { SecurityDevicesController } from './api/securityDevices.controller';
-import {
-  SecurityDevice,
-  SecurityDeviceSchema,
-} from './domain/securityDevice.entity';
 import { SecurityDevicesRepository } from './infrastructure/securityDevices.repository';
 import { SecurityDeviceService } from './application/securityDevice.service';
 import {
@@ -33,6 +28,13 @@ import { DeleteAllSessionsExcludeCurrentUseCase } from './application/usecases/s
 import { DeleteSessionUseCase } from './application/usecases/sessions/delete-session.usecase';
 import { GetActiveSessionsQueryHandler } from './application/queries/sessions/get-activeSessions.query';
 import { SecurityDevicesQueryRepository } from './infrastructure/query/securityDevices.query-repository';
+import { LoginUseCase } from './application/usecases/auth/login.usecase';
+import { RegistrationUseCase } from './application/usecases/auth/registration.usecase';
+import { ConfirmRegistrationUseCase } from './application/usecases/auth/confirmRegistration.usecase';
+import { ResendConfirmationCodeUseCase } from './application/usecases/auth/resendConfirmationCode.usecase';
+import { PasswordRecoveryUseCase } from './application/usecases/auth/passwordRecovery.usecase';
+import { CreateNewPasswordUseCase } from './application/usecases/auth/createNewPassword.usecase';
+import { MeQueryHandler } from './application/queries/auth/me.query';
 
 const commandHandlers = [
   DeleteUserUseCase,
@@ -41,18 +43,21 @@ const commandHandlers = [
   LogoutUseCase,
   DeleteAllSessionsExcludeCurrentUseCase,
   DeleteSessionUseCase,
+  LoginUseCase,
+  RegistrationUseCase,
+  ConfirmRegistrationUseCase,
+  ResendConfirmationCodeUseCase,
+  PasswordRecoveryUseCase,
+  CreateNewPasswordUseCase,
 ];
-const queryHandlers = [GetAllUsersQueryHandler, GetActiveSessionsQueryHandler];
+const queryHandlers = [
+  GetAllUsersQueryHandler,
+  GetActiveSessionsQueryHandler,
+  MeQueryHandler,
+];
 
 @Module({
-  imports: [
-    MongooseModule.forFeature([
-      { name: User.name, schema: UserSchema },
-      { name: SecurityDevice.name, schema: SecurityDeviceSchema },
-    ]),
-    JwtModule,
-    NotificationsModule,
-  ],
+  imports: [JwtModule, NotificationsModule],
   controllers: [UsersController, AuthController, SecurityDevicesController],
   providers: [
     UsersRepository,

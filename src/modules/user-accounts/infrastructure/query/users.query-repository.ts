@@ -1,22 +1,23 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { User, type UserModelType } from '../../domain/user.entity';
 import { UserViewDto } from '../../api/view-dto/users.view-dto';
-import { FilterQuery } from 'mongoose';
 import { GetUsersQueryParams } from '../../api/input-dto/get-users-query-params.input-dto';
 import { PaginatedViewDto } from '../../../../core/dto/base.paginated.view-dto';
+import { InjectDataSource } from '@nestjs/typeorm';
+import { DataSource } from 'typeorm';
 
 @Injectable()
 export class UsersQueryRepository {
-  constructor(
-    @InjectModel(User.name)
-    private UserModel: UserModelType,
-  ) {}
+  constructor(@InjectDataSource() protected dataSource: DataSource) {}
 
   async getByIdOrNotFoundFail(id: string): Promise<UserViewDto> {
-    const user = await this.UserModel.findOne({
-      _id: id,
-    });
+    const [user] = await this.dataSource.query(
+      `SELECT id, login, email, "createdAt"
+     FROM users
+     WHERE id = $1 AND "deletedAt" IS NULL`,
+      [id],
+    );
+
+    console.log(id);
 
     if (!user) {
       throw new NotFoundException('user not found');
@@ -28,36 +29,86 @@ export class UsersQueryRepository {
   async getAll(
     query: GetUsersQueryParams,
   ): Promise<PaginatedViewDto<UserViewDto[]>> {
-    const filter: FilterQuery<User> = {
-      deletedAt: null,
-    };
+    function buildWhere(
+      searchLoginTerm: string | null,
+      searchEmailTerm: string | null,
+    ) {
+      const params: any[] = [];
+      const searchConditions: string[] = [];
+      let paramIndex = 1;
 
-    if (query.searchLoginTerm) {
-      filter.$or = filter.$or || [];
-      filter.$or.push({
-        login: { $regex: query.searchLoginTerm, $options: 'i' },
-      });
+      if (searchLoginTerm) {
+        searchConditions.push(`login ILIKE $${paramIndex++}`);
+        params.push(`%${searchLoginTerm}%`);
+      }
+
+      if (searchEmailTerm) {
+        searchConditions.push(`email ILIKE $${paramIndex++}`);
+        params.push(`%${searchEmailTerm}%`);
+      }
+
+      // deletedAt IS NULL — обязательное условие
+      // поисковые условия объединяются через OR между собой
+      let sql = `WHERE "deletedAt" IS NULL`;
+      if (searchConditions.length > 0) {
+        sql += ` AND (${searchConditions.join(' OR ')})`;
+      }
+
+      return { sql, params };
     }
 
-    if (query.searchEmailTerm) {
-      filter.$or = filter.$or || [];
-      filter.$or.push({
-        email: { $regex: query.searchEmailTerm, $options: 'i' },
-      });
+    const {
+      searchLoginTerm,
+      searchEmailTerm,
+      sortBy,
+      sortDirection,
+      pageSize,
+    } = query;
+    const skip = query.calculateSkip();
+
+    // Собираем условия WHERE
+    const conditions: string[] = ['"deletedAt" IS NULL'];
+    const params: any[] = [];
+    let paramIndex = 1;
+
+    if (searchLoginTerm) {
+      conditions.push(`login ILIKE $${paramIndex++}`);
+      params.push(`%${searchLoginTerm}%`);
     }
 
-    const users = await this.UserModel.find(filter)
-      .sort({ [query.sortBy]: query.sortDirection })
-      .skip(query.calculateSkip())
-      .limit(query.pageSize);
+    if (searchEmailTerm) {
+      conditions.push(`email ILIKE $${paramIndex++}`);
+      params.push(`%${searchEmailTerm}%`);
+    }
 
-    const totalCount = await this.UserModel.countDocuments(filter);
+    const where = buildWhere(searchLoginTerm, searchEmailTerm);
+
+    // Запрос данных
+    const stringColumns = ['login', 'email'];
+    const orderBy = stringColumns.includes(sortBy)
+      ? `"${sortBy}" COLLATE "C"`
+      : `"${sortBy}"`;
+
+    const users = await this.dataSource.query(
+      `SELECT id, login, email, "createdAt"
+   FROM users
+   ${where.sql}
+   ORDER BY ${orderBy} ${sortDirection.toUpperCase()}
+   LIMIT $${where.params.length + 1} OFFSET $${where.params.length + 2}`,
+      [...where.params, pageSize, skip],
+    );
+
+    // Запрос общего количества
+    const [{ count }] = await this.dataSource.query(
+      `SELECT COUNT(*) as count FROM users ${where.sql}`,
+      where.params,
+    );
 
     const items = users.map((user) => UserViewDto.mapToView(user));
 
     return PaginatedViewDto.mapToView({
       items,
-      totalCount,
+      totalCount: Number(count),
       page: query.pageNumber,
       size: query.pageSize,
     });

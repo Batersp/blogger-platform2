@@ -12,8 +12,7 @@ import {
 import { LocalAuthGuard } from '../guards/local/local-auth.guard';
 import { ExtractUserFromRequest } from '../guards/decorators/extract-user-from-request.decorator';
 import { UserContextDto } from '../guards/dto/user-context.dto';
-import { AuthService } from '../application/auth.service';
-import { type Response, type Request } from 'express';
+import { type Request, type Response } from 'express';
 import {
   ConfirmEmailInputDto,
   CreateNewPasswordInputDto,
@@ -21,25 +20,30 @@ import {
   PasswordRecoveryInputDto,
   ResendConfirmationCodeInputDto,
 } from './input-dto/users.input-dto';
-import { UsersService } from '../application/user.service';
 import { JwtAuthGuard } from '../guards/bearer/jwt-auth.guard';
 import { MeViewDto } from './view-dto/users.view-dto';
 import { AuthQueryRepository } from '../infrastructure/query/auth.query-repository';
 import { ThrottlerGuard } from '@nestjs/throttler';
-import { CommandBus } from '@nestjs/cqrs';
+import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import { RefreshTokenCommand } from '../application/usecases/auth/refreshToken.usecase';
 import { RefreshTokenGuard } from '../guards/refresh-token/refresh-token.guard';
 import { ExtractRefreshTokenPayload } from '../guards/decorators/extract-refresh-token-payload.decorator';
 import { RefreshTokenPayloadDto } from '../guards/dto/refreshToken-payload.dto';
 import { LogoutCommand } from '../application/usecases/auth/logout.usecase';
+import { LoginCommand } from '../application/usecases/auth/login.usecase';
+import { RegistrationCommand } from '../application/usecases/auth/registration.usecase';
+import { ConfirmRegistrationCommand } from '../application/usecases/auth/confirmRegistration.usecase';
+import { ResendConfirmationCodeCommand } from '../application/usecases/auth/resendConfirmationCode.usecase';
+import { PasswordRecoveryCommand } from '../application/usecases/auth/passwordRecovery.usecase';
+import { CreateNewPasswordCommand } from '../application/usecases/auth/createNewPassword.usecase';
+import { MeQuery } from '../application/queries/auth/me.query';
 
 @Controller('auth')
 export class AuthController {
   constructor(
-    private authService: AuthService,
-    private usersService: UsersService,
     private authQueryRepository: AuthQueryRepository,
     private commandBus: CommandBus,
+    private queryBus: QueryBus,
   ) {}
 
   @Post('login')
@@ -51,10 +55,12 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
     @Req() req: Request,
   ): Promise<{ accessToken: string }> {
-    const { accessToken, refreshToken } = await this.authService.login(
-      user.id,
-      req.ip!,
-      req.headers['user-agent'],
+    const { accessToken, refreshToken } = await this.commandBus.execute(
+      new LoginCommand({
+        userId: user.id,
+        ip: req.ip!,
+        deviceName: req.headers['user-agent'] || 'commonName',
+      }),
     );
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true, // недоступен из JS
@@ -69,14 +75,23 @@ export class AuthController {
   @UseGuards(ThrottlerGuard)
   @HttpCode(HttpStatus.NO_CONTENT)
   async registration(@Body() body: CreateUserInputDto): Promise<void> {
-    return this.usersService.registerUser(body);
+    const { login, password, email } = body;
+    return this.commandBus.execute(
+      new RegistrationCommand({
+        login,
+        password,
+        email,
+      }),
+    );
   }
 
   @Post('registration-confirmation')
   @UseGuards(ThrottlerGuard)
   @HttpCode(HttpStatus.NO_CONTENT)
   async confirmRegistration(@Body() body: ConfirmEmailInputDto): Promise<void> {
-    return this.authService.confirmRegistration(body);
+    return this.commandBus.execute(
+      new ConfirmRegistrationCommand({ code: body.code }),
+    );
   }
 
   @Post('registration-email-resending')
@@ -85,7 +100,9 @@ export class AuthController {
   async resendConfirmationCode(
     @Body() body: ResendConfirmationCodeInputDto,
   ): Promise<void> {
-    return this.authService.resendConfirmationCode(body);
+    return this.commandBus.execute(
+      new ResendConfirmationCodeCommand({ email: body.email }),
+    );
   }
 
   @Post('password-recovery')
@@ -94,7 +111,7 @@ export class AuthController {
   async passwordRecovery(
     @Body() body: PasswordRecoveryInputDto,
   ): Promise<void> {
-    return this.authService.passwordRecovery(body);
+    return this.commandBus.execute(new PasswordRecoveryCommand(body));
   }
 
   @Post('new-password')
@@ -103,7 +120,7 @@ export class AuthController {
   async createNewPassword(
     @Body() body: CreateNewPasswordInputDto,
   ): Promise<void> {
-    return this.authService.createNewPassword(body);
+    return this.commandBus.execute(new CreateNewPasswordCommand(body));
   }
 
   @Post('refresh-token')
@@ -155,6 +172,6 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
   async me(@ExtractUserFromRequest() user: UserContextDto): Promise<MeViewDto> {
-    return this.authQueryRepository.me(user.id);
+    return this.queryBus.execute(new MeQuery(user.id));
   }
 }

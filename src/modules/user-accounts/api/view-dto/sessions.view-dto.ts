@@ -1,4 +1,4 @@
-import { SecurityDeviceDocument } from '../../domain/securityDevice.entity';
+import { SecurityDevice } from '../../domain/securityDevice.entity';
 import { Utils } from '../../../../core/utils/utils';
 
 export class SessionsViewDto {
@@ -7,7 +7,7 @@ export class SessionsViewDto {
   lastActiveDate: string;
   deviceId: string;
 
-  static mapToView(session: SecurityDeviceDocument): SessionsViewDto {
+  static mapToView(session: SecurityDevice): SessionsViewDto {
     const dto = new SessionsViewDto();
 
     dto.ip = session.ip;

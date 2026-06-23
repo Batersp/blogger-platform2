@@ -1,8 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import {
-  User,
-  type UserModelType,
-} from '../../user-accounts/domain/user.entity';
 import { InjectModel } from '@nestjs/mongoose';
 import {
   Blog,
@@ -24,15 +20,13 @@ import {
   PostLike,
   type PostLikeModelType,
 } from '../../bloggers-platform/posts/domain/postLike.entity';
-import {
-  SecurityDevice,
-  type SecurityDeviceModelType,
-} from '../../user-accounts/domain/securityDevice.entity';
+import { DataSource } from 'typeorm';
+import { InjectDataSource } from '@nestjs/typeorm';
 
 @Injectable()
 export class TestingService {
   constructor(
-    @InjectModel(User.name) private UserModel: UserModelType,
+    @InjectDataSource() private dataSource: DataSource,
     @InjectModel(Blog.name) private BlogModel: BlogModelType,
     @InjectModel(Post.name) private PostModel: PostModelType,
     @InjectModel(Comment.name) private CommentModel: CommentModelType,
@@ -40,19 +34,20 @@ export class TestingService {
     private CommentLikeModel: CommentLikeModelType,
     @InjectModel(PostLike.name)
     private PostLikeModel: PostLikeModelType,
-    @InjectModel(SecurityDevice.name)
-    private SecurityDeviceModel: SecurityDeviceModelType,
   ) {}
 
   async deleteAllData(): Promise<void> {
     await Promise.all([
-      this.UserModel.deleteMany({}),
       this.BlogModel.deleteMany({}),
       this.PostModel.deleteMany({}),
       this.CommentModel.deleteMany({}),
       this.CommentLikeModel.deleteMany({}),
       this.PostLikeModel.deleteMany({}),
-      this.SecurityDeviceModel.deleteMany({}),
+      // SQL — порядок важен из-за foreign keys:
+      // сначала дочерние таблицы, потом родительская
+      this.dataSource.query(
+        `TRUNCATE TABLE "userEmailConfirmationInfo", "userPasswordRecoveryInfo", "securityDevices", users CASCADE`,
+      ),
     ]);
   }
 }

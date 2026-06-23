@@ -1,6 +1,4 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { CreateUserDomainDto } from './dto/create-user.domain.dto';
-import { HydratedDocument, Model } from 'mongoose';
 
 export const loginConstraints = {
   minLength: 3,
@@ -12,67 +10,40 @@ export const passwordConstraints = {
   maxLength: 20,
 };
 
-@Schema()
 export class EmailConfirmationInfo {
-  @Prop({ type: String, required: true, minlength: 1, maxlength: 1000 })
   confirmationCode: string;
-
-  @Prop({ type: Date, required: true })
   expirationDate: Date;
-
-  @Prop({ type: Boolean, required: true })
   isConfirmed: boolean;
 }
 
-export const EmailConfirmationInfoSchema = SchemaFactory.createForClass(
-  EmailConfirmationInfo,
-);
-
-@Schema()
 export class PasswordRecoveryInfo {
-  @Prop({ type: String, required: true, minlength: 1, maxlength: 1000 })
   recoveryCode: string;
-
-  @Prop({ type: Date, required: true })
   expirationDate: Date;
 }
 
-export const PasswordRecoveryInfoSchema =
-  SchemaFactory.createForClass(PasswordRecoveryInfo);
-
-@Schema({ timestamps: true })
 export class User {
-  @Prop({ type: String, required: true, unique: true })
+  id: string;
   login: string;
-
-  @Prop({ type: String, required: true, unique: true })
   email: string;
-
-  @Prop({ type: String, required: true })
   passwordHash: string;
-
-  @Prop({ type: Date, default: null })
   deletedAt: Date | null;
-
-  @Prop({ type: EmailConfirmationInfoSchema, required: false, default: null })
   emailConfirmation: EmailConfirmationInfo | null;
-
-  @Prop({ type: PasswordRecoveryInfoSchema, required: false, default: null })
   passwordRecovery: PasswordRecoveryInfo | null;
-
   createdAt: Date;
   updatedAt: Date;
 
-  static createInstance(dto: CreateUserDomainDto): UserDocument {
-    const user = new this();
-    user.email = dto.email;
+  static createInstance(dto: CreateUserDomainDto): User {
+    const user = new User();
     user.login = dto.login;
+    user.email = dto.email;
     user.passwordHash = dto.passwordHash;
     user.deletedAt = null;
     user.emailConfirmation = null;
     user.passwordRecovery = null;
+    user.createdAt = new Date();
+    user.updatedAt = new Date();
 
-    return user as UserDocument;
+    return user;
   }
 
   makeDeleted() {
@@ -107,7 +78,7 @@ export class User {
   savePasswordRecoveryCode(code: string, expirationDate: Date) {
     this.passwordRecovery = {
       recoveryCode: code,
-      expirationDate: expirationDate,
+      expirationDate,
     };
   }
 
@@ -117,14 +88,8 @@ export class User {
   }
 
   get isEmailConfirmed(): boolean {
-    // если создан админом — emailConfirmation null, считаем подтверждённым
     return (
       this.emailConfirmation === null || this.emailConfirmation.isConfirmed
     );
   }
 }
-
-export const UserSchema = SchemaFactory.createForClass(User);
-UserSchema.loadClass(User);
-export type UserDocument = HydratedDocument<User>;
-export type UserModelType = Model<UserDocument> & typeof User;
