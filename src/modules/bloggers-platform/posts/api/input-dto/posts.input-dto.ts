@@ -46,12 +46,6 @@ export class UpdatePostInputDto {
   @IsNotEmpty()
   @Trim()
   content: string;
-
-  @Length(1, 100)
-  @IsString()
-  @IsNotEmpty()
-  @Trim()
-  blogId: string;
 }
 
 export class UpdateLikeStatusInputDto {

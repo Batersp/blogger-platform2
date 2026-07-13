@@ -2,19 +2,18 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { GetBlogsQueryParams } from '../../api/input-dto/get-blogs-query-params.input-dto';
 import { PaginatedViewDto } from '../../../../../core/dto/base.paginated.view-dto';
 import { BlogViewDto } from '../../api/view-dto/blogs.view-dto';
-import { FilterQuery } from 'mongoose';
-import { Blog, type BlogModelType } from '../../domain/blog.entity';
-import { InjectModel } from '@nestjs/mongoose';
+import { DataSource } from 'typeorm';
+import { InjectDataSource } from '@nestjs/typeorm';
 
 @Injectable()
 export class BlogsQueryRepository {
-  constructor(@InjectModel(Blog.name) private BlogModel: BlogModelType) {}
+  constructor(@InjectDataSource() private dataSource: DataSource) {}
 
   async getByIdOrNotFoundFail(id: string): Promise<BlogViewDto> {
-    const blog = await this.BlogModel.findOne({
-      _id: id,
-      deletedAt: null,
-    });
+    const [blog] = await this.dataSource.query(
+      `SELECT * FROM blogs WHERE id = $1 AND "deletedAt" IS NULL`,
+      [id],
+    );
 
     if (!blog) {
       throw new NotFoundException('blog not found');
@@ -26,29 +25,36 @@ export class BlogsQueryRepository {
   async getAll(
     query: GetBlogsQueryParams,
   ): Promise<PaginatedViewDto<BlogViewDto[]>> {
-    const filter: FilterQuery<Blog> = {
-      deletedAt: null,
-    };
+    const params: any[] = [];
+    let paramIndex = 1;
+    let sql = `WHERE "deletedAt" IS NULL`;
 
     if (query.searchNameTerm) {
-      filter.$or = filter.$or || [];
-      filter.$or.push({
-        name: { $regex: query.searchNameTerm, $options: 'i' },
-      });
+      sql += ` AND name ILIKE $${paramIndex++}`;
+      params.push(`%${query.searchNameTerm}%`);
     }
 
-    const blogs = await this.BlogModel.find(filter)
-      .sort({ [query.sortBy]: query.sortDirection })
-      .skip(query.calculateSkip())
-      .limit(query.pageSize);
+    const stringColumns = ['name', 'description', 'websiteUrl'];
+    const orderBy = stringColumns.includes(query.sortBy)
+      ? `"${query.sortBy}" COLLATE "C"`
+      : `"${query.sortBy}"`;
 
-    const totalCount = await this.BlogModel.countDocuments(filter);
+    const blogs = await this.dataSource.query(
+      `SELECT * FROM blogs
+       ${sql}
+       ORDER BY ${orderBy} ${query.sortDirection.toUpperCase()}
+       LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
+      [...params, query.pageSize, query.calculateSkip()],
+    );
 
-    const items = blogs.map((blog) => BlogViewDto.mapToView(blog));
+    const [{ count }] = await this.dataSource.query(
+      `SELECT COUNT(*) as count FROM blogs ${sql}`,
+      params,
+    );
 
     return PaginatedViewDto.mapToView({
-      items,
-      totalCount,
+      items: blogs.map((blog) => BlogViewDto.mapToView(blog)),
+      totalCount: Number(count),
       page: query.pageNumber,
       size: query.pageSize,
     });

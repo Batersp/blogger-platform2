@@ -17,7 +17,6 @@ import { BlogViewDto } from './view-dto/blogs.view-dto';
 import { BlogsQueryRepository } from '../infrastructure/query/blogs.query-repository';
 import { BlogService } from '../application/blog.service';
 import {
-  CreateBlogInputDTO,
   CreatePostForBlogInputDto,
   UpdateBlogInputDTO,
 } from './input-dto/blogs.input-dto';
@@ -29,6 +28,10 @@ import { BasicAuthGuard } from '../../../user-accounts/guards/basic/basic-auth.g
 import { JwtOptionalAuthGuard } from '../../../user-accounts/guards/bearer/jwt-optional-auth.guard';
 import { ExtractUserFromRequest } from '../../../user-accounts/guards/decorators/extract-user-from-request.decorator';
 import { UserContextDto } from '../../../user-accounts/guards/dto/user-context.dto';
+import { QueryBus } from '@nestjs/cqrs';
+import { GetAllBlogsQuery } from '../application/queries/get-blogs.query';
+import { GetPostsForBlogQuery } from '../application/queries/get-postsForBlog.query';
+import { GetBlogByIdQuery } from '../application/queries/get-blogById';
 
 @Controller('blogs')
 export class BlogsController {
@@ -37,18 +40,19 @@ export class BlogsController {
     private blogService: BlogService,
     private postService: PostService,
     private postsQueryRepository: PostsQueryRepository,
+    private queryBus: QueryBus,
   ) {}
 
   @Get()
   async getAll(
     @Query() query: GetBlogsQueryParams,
   ): Promise<PaginatedViewDto<BlogViewDto[]>> {
-    return this.blogsQueryRepository.getAll(query);
+    return this.queryBus.execute(new GetAllBlogsQuery(query));
   }
 
   @Get(':id')
   async getBlogById(@Param('id') id: string): Promise<BlogViewDto> {
-    return this.blogsQueryRepository.getByIdOrNotFoundFail(id);
+    return this.queryBus.execute(new GetBlogByIdQuery(id));
   }
 
   @Get(':id/posts')
@@ -58,18 +62,17 @@ export class BlogsController {
     @Query() query: GetPostsQueryParams,
     @ExtractUserFromRequest() user: UserContextDto | null,
   ): Promise<PaginatedViewDto<PostViewDto[]>> {
-    await this.blogsQueryRepository.getByIdOrNotFoundFail(id);
-    return this.postsQueryRepository.getAll(query, id, user?.id);
+    return this.queryBus.execute(new GetPostsForBlogQuery(query, id, user?.id));
   }
 
-  @Post()
+  /*@Post()
   @UseGuards(BasicAuthGuard)
   async create(@Body() body: CreateBlogInputDTO): Promise<BlogViewDto> {
     const blogId = await this.blogService.createBlog(body);
     return this.blogsQueryRepository.getByIdOrNotFoundFail(blogId);
-  }
+  }*/
 
-  @Post(':id/posts')
+  /* @Post(':id/posts')
   @UseGuards(BasicAuthGuard)
   async createPostForBlog(
     @Param('id') id: string,
@@ -78,9 +81,9 @@ export class BlogsController {
     await this.blogsQueryRepository.getByIdOrNotFoundFail(id);
     const postId = await this.postService.createPost({ ...body, blogId: id });
     return this.postsQueryRepository.getByIdOrNotFoundFail(postId);
-  }
+  }*/
 
-  @Put(':id')
+  /*@Put(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   @UseGuards(BasicAuthGuard)
   async update(
@@ -88,12 +91,12 @@ export class BlogsController {
     @Body() body: UpdateBlogInputDTO,
   ): Promise<void> {
     return this.blogService.updateBlog(body, id);
-  }
+  }*/
 
-  @Delete(':id')
+  /*@Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   @UseGuards(BasicAuthGuard)
   async delete(@Param('id') id: string): Promise<void> {
     return this.blogService.deleteBlog(id);
-  }
+  }*/
 }

@@ -1,32 +1,35 @@
-import { PostDocument } from '../../domain/post.entity';
 import { LIKE_STATUS } from '../../../../../core/enums/likeStatus.enum';
+import { Post } from '../../domain/post.entity';
+
+type NewestLike = {
+  addedAt: Date;
+  userId: string;
+  login: string;
+};
 
 export class PostViewDto {
   id: string;
   title: string;
   shortDescription: string;
   content: string;
-  blogId: string;
+  blogId: string | null;
   blogName: string;
   createdAt: Date;
   extendedLikesInfo: {
     likesCount: number;
     dislikesCount: number;
     myStatus: LIKE_STATUS;
-    newestLikes: {
-      addedAt: Date;
-      userId: string;
-      login: string;
-    }[];
+    newestLikes: NewestLike[];
   };
 
   static mapToView(
-    post: PostDocument,
+    post: Post,
     myStatus: LIKE_STATUS = LIKE_STATUS.NONE,
+    newestLikes: NewestLike[] = [],
   ): PostViewDto {
     const dto = new PostViewDto();
 
-    dto.id = post._id.toString();
+    dto.id = post.id;
     dto.title = post.title;
     dto.shortDescription = post.shortDescription;
     dto.content = post.content;
@@ -37,11 +40,7 @@ export class PostViewDto {
       likesCount: post.likesCount,
       dislikesCount: post.dislikesCount,
       myStatus,
-      newestLikes: post.newestLikes.map((l) => ({
-        addedAt: l.addedAt,
-        userId: l.userId,
-        login: l.login,
-      })),
+      newestLikes,
     };
 
     return dto;

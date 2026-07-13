@@ -1,5 +1,5 @@
 import { LIKE_STATUS } from '../../../../../core/enums/likeStatus.enum';
-import { CommentDocument } from '../../domain/comment.entity';
+import { Comment } from '../../domain/comment.entity';
 
 export class CommentViewDto {
   id: string;
@@ -16,16 +16,16 @@ export class CommentViewDto {
   };
 
   static mapToView(
-    comment: CommentDocument,
+    comment: Comment,
     myStatus: LIKE_STATUS = LIKE_STATUS.NONE,
   ): CommentViewDto {
     const dto = new CommentViewDto();
 
-    dto.id = comment._id.toString();
+    dto.id = comment.id;
     dto.content = comment.content;
     dto.commentatorInfo = {
-      userId: comment.commentatorInfo.userId,
-      userLogin: comment.commentatorInfo.userLogin,
+      userId: comment.userId,
+      userLogin: comment.userLogin,
     };
     dto.createdAt = comment.createdAt;
     dto.likesInfo = {

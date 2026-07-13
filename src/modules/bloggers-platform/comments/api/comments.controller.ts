@@ -10,8 +10,6 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { CommentViewDto } from './view-dto/comments.view-dto';
-import { CommentsQueryRepository } from '../infrastructure/query/comments.query-repository';
-import { CommentService } from '../application/comment.service';
 import { JwtAuthGuard } from '../../../user-accounts/guards/bearer/jwt-auth.guard';
 import { ExtractUserFromRequest } from '../../../user-accounts/guards/decorators/extract-user-from-request.decorator';
 import { UserContextDto } from '../../../user-accounts/guards/dto/user-context.dto';
@@ -20,12 +18,17 @@ import {
   UpdateLikeStatusInputDto,
 } from './input-dto/comments.input-dto';
 import { JwtOptionalAuthGuard } from '../../../user-accounts/guards/bearer/jwt-optional-auth.guard';
+import { CommandBus, QueryBus } from '@nestjs/cqrs';
+import { UpdateCommentCommand } from '../application/usecases/update-comment.usecase';
+import { UpdateLikeStatusCommand } from '../application/usecases/update-commentLikeStatus.useCase';
+import { DeleteCommentCommand } from '../application/usecases/delete-comment.usecase';
+import { GetCommentByIdQuery } from '../application/queries/get-commentById.query';
 
 @Controller('comments')
 export class CommentsController {
   constructor(
-    private commentsQueryRepository: CommentsQueryRepository,
-    private commentService: CommentService,
+    private queryBus: QueryBus,
+    private commandBus: CommandBus,
   ) {}
 
   @Get(':id')
@@ -34,7 +37,7 @@ export class CommentsController {
     @Param('id') id: string,
     @ExtractUserFromRequest() user: UserContextDto | null,
   ): Promise<CommentViewDto> {
-    return this.commentsQueryRepository.getByIdOrNotFoundFail(id, user?.id);
+    return this.queryBus.execute(new GetCommentByIdQuery(id, user?.id));
   }
 
   @Put(':id')
@@ -45,7 +48,13 @@ export class CommentsController {
     @Body() body: UpdateCommentInputDto,
     @ExtractUserFromRequest() user: UserContextDto,
   ): Promise<void> {
-    return this.commentService.updateComment(body, id, user.id);
+    await this.commandBus.execute(
+      new UpdateCommentCommand({
+        commentId: id,
+        userId: user.id,
+        dto: body,
+      }),
+    );
   }
 
   @Put(':id/like-status')
@@ -56,7 +65,13 @@ export class CommentsController {
     @Body() body: UpdateLikeStatusInputDto,
     @ExtractUserFromRequest() user: UserContextDto,
   ): Promise<void> {
-    return this.commentService.updateLikeStatus(id, user.id, body.likeStatus);
+    await this.commandBus.execute(
+      new UpdateLikeStatusCommand({
+        commentId: id,
+        userId: user.id,
+        likeStatus: body.likeStatus,
+      }),
+    );
   }
 
   @Delete(':id')
@@ -66,6 +81,11 @@ export class CommentsController {
     @Param('id') id: string,
     @ExtractUserFromRequest() user: UserContextDto,
   ): Promise<void> {
-    return this.commentService.deleteComment(id, user.id);
+    await this.commandBus.execute(
+      new DeleteCommentCommand({
+        userId: user.id,
+        commentId: id,
+      }),
+    );
   }
 }

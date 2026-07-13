@@ -43,7 +43,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
     ThrottlerModule.forRoot([
       {
         ttl: 10000, // 10 секунд в миллисекундах
-        limit: 5, // максимум 5 запросов
+        limit: 500000, // максимум 5 запросов
       },
     ]),
   ],

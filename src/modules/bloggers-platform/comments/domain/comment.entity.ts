@@ -1,55 +1,31 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { HydratedDocument, Model } from 'mongoose';
 import { CreateCommentDomainDto } from './dto/create-comment.domain.dto';
 import { UpdateCommentDomainDto } from './dto/update-comment.domain.dto';
 import { LIKE_STATUS } from '../../../../core/enums/likeStatus.enum';
 
-@Schema()
-export class CommentatorInfo {
-  @Prop({ type: String, required: true })
-  userId: string;
-
-  @Prop({ type: String, required: true })
-  userLogin: string;
-}
-
-export const CommentatorInfoSchema =
-  SchemaFactory.createForClass(CommentatorInfo);
-
-@Schema({ timestamps: true })
 export class Comment {
-  @Prop({ type: String, required: true, minlength: 1, maxlength: 1000 })
+  id: string;
   content: string;
-
-  @Prop({ type: CommentatorInfoSchema, required: true })
-  commentatorInfo: CommentatorInfo;
-
-  @Prop({ type: String, required: true })
+  userId: string;
+  userLogin: string;
   postId: string;
-
-  @Prop({ type: Number, required: true })
   likesCount: number;
-
-  @Prop({ type: Number, required: true })
   dislikesCount: number;
-
-  @Prop({ type: Date, default: null })
   deletedAt: Date | null;
-
   createdAt: Date;
   updatedAt: Date;
 
-  static createInstance(dto: CreateCommentDomainDto): CommentDocument {
-    const comment = new this();
+  static createInstance(dto: CreateCommentDomainDto): Comment {
+    const comment = new Comment();
 
     comment.content = dto.content;
-    comment.commentatorInfo = dto.commentatorInfo;
+    comment.userId = dto.commentatorInfo.userId;
+    comment.userLogin = dto.commentatorInfo.userLogin;
     comment.postId = dto.postId;
     comment.likesCount = 0;
     comment.dislikesCount = 0;
     comment.deletedAt = null;
 
-    return comment as CommentDocument;
+    return comment;
   }
 
   update(dto: UpdateCommentDomainDto) {
@@ -70,8 +46,3 @@ export class Comment {
     this.deletedAt = new Date();
   }
 }
-
-export const CommentsSchema = SchemaFactory.createForClass(Comment);
-CommentsSchema.loadClass(Comment);
-export type CommentDocument = HydratedDocument<Comment>;
-export type CommentModelType = Model<CommentDocument> & typeof Comment;
