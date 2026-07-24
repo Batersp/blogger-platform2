@@ -25,7 +25,7 @@ export class CommentLikesRepository {
     userId: string,
   ): Promise<CommentLike | null> {
     const [row]: [CommentLike | null] = await this.dataSource.query(
-      `SELECT * FROM comment_likes WHERE "commentId" = $1 AND "userId" = $2`,
+      `SELECT * FROM "commentLikes" WHERE "commentId" = $1 AND "userId" = $2`,
       [commentId, userId],
     );
     return row ? this.mapToDomain(row) : null;
@@ -33,7 +33,7 @@ export class CommentLikesRepository {
 
   async create(commentLike: CommentLike): Promise<void> {
     const [row]: [CommentLike] = await this.dataSource.query(
-      `INSERT INTO comment_likes ("commentId", "userId", "userLogin", "likeStatus", "createdAt", "updatedAt")
+      `INSERT INTO "commentLikes" ("commentId", "userId", "userLogin", "likeStatus", "createdAt", "updatedAt")
        VALUES ($1, $2, $3, $4, NOW(), NOW())
        RETURNING id`,
       [
@@ -48,7 +48,7 @@ export class CommentLikesRepository {
 
   async save(commentLike: CommentLike): Promise<void> {
     await this.dataSource.query(
-      `UPDATE comment_likes SET
+      `UPDATE "commentLikes" SET
         "likeStatus" = $1, "updatedAt" = NOW()
        WHERE id = $2`,
       [commentLike.likeStatus, commentLike.id],

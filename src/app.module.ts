@@ -11,21 +11,11 @@ import { AllHttpExceptionsFilter } from './core/exceptions/filters/all-exception
 import { DomainHttpExceptionsFilter } from './core/exceptions/filters/domain-exceptions.filter';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { configModule } from './dynamic-config-module';
-import { CoreConfig } from './core/core.config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 @Module({
   imports: [
     configModule,
-    MongooseModule.forRootAsync({
-      useFactory: (coreConfig: CoreConfig) => {
-        const uri = coreConfig.mongoURI;
-        return {
-          uri,
-        };
-      },
-      inject: [CoreConfig],
-    }),
     TypeOrmModule.forRoot({
       type: 'postgres',
       host: 'localhost',
