@@ -1,18 +1,38 @@
 import { CreateCommentDomainDto } from './dto/create-comment.domain.dto';
 import { UpdateCommentDomainDto } from './dto/update-comment.domain.dto';
 import { LIKE_STATUS } from '../../../../core/enums/likeStatus.enum';
+import { Column, Entity, JoinColumn, ManyToOne, OneToMany } from 'typeorm';
+import { BaseDBEntity } from '../../../../core/entities/base.entity';
+import { Post } from '../../posts/domain/post.entity';
+import { PostLike } from '../../posts/domain/postLike.entity';
+import { CommentLike } from './commentLike.entity';
 
-export class Comment {
-  id: string;
+@Entity({ name: 'comments' })
+export class Comment extends BaseDBEntity {
+  @Column({ type: 'varchar', length: 1000, nullable: false })
   content: string;
+
+  @Column({ type: 'uuid', nullable: false })
   userId: string;
+
+  @Column({ type: 'varchar', length: 20, nullable: false })
   userLogin: string;
+
+  @Column({ type: 'uuid', nullable: false })
   postId: string;
+
+  @Column({ type: 'int', default: 0 })
   likesCount: number;
+
+  @Column({ type: 'int', default: 0 })
   dislikesCount: number;
-  deletedAt: Date | null;
-  createdAt: Date;
-  updatedAt: Date;
+
+  @ManyToOne(() => Post, (post) => post.comments, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'postId' })
+  post: Post;
+
+  @OneToMany(() => CommentLike, (like) => like.comment)
+  likes: CommentLike[];
 
   static createInstance(dto: CreateCommentDomainDto): Comment {
     const comment = new Comment();

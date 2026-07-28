@@ -2,18 +2,19 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { GetBlogsQueryParams } from '../../api/input-dto/get-blogs-query-params.input-dto';
 import { PaginatedViewDto } from '../../../../../core/dto/base.paginated.view-dto';
 import { BlogViewDto } from '../../api/view-dto/blogs.view-dto';
-import { DataSource } from 'typeorm';
-import { InjectDataSource } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Blog } from '../../domain/blog.entity';
 
 @Injectable()
 export class BlogsQueryRepository {
-  constructor(@InjectDataSource() private dataSource: DataSource) {}
+  constructor(
+    @InjectRepository(Blog)
+    private blogsRepo: Repository<Blog>,
+  ) {}
 
   async getByIdOrNotFoundFail(id: string): Promise<BlogViewDto> {
-    const [blog] = await this.dataSource.query(
-      `SELECT * FROM blogs WHERE id = $1 AND "deletedAt" IS NULL`,
-      [id],
-    );
+    const blog = await this.blogsRepo.findOne({ where: { id } });
 
     if (!blog) {
       throw new NotFoundException('blog not found');
@@ -25,36 +26,34 @@ export class BlogsQueryRepository {
   async getAll(
     query: GetBlogsQueryParams,
   ): Promise<PaginatedViewDto<BlogViewDto[]>> {
-    const params: any[] = [];
-    let paramIndex = 1;
-    let sql = `WHERE "deletedAt" IS NULL`;
+    const qb = this.blogsRepo.createQueryBuilder('b');
 
     if (query.searchNameTerm) {
-      sql += ` AND name ILIKE $${paramIndex++}`;
-      params.push(`%${query.searchNameTerm}%`);
+      qb.andWhere('b.name ILIKE :searchNameTerm', {
+        searchNameTerm: `%${query.searchNameTerm}%`,
+      });
     }
 
     const stringColumns = ['name', 'description', 'websiteUrl'];
-    const orderBy = stringColumns.includes(query.sortBy)
-      ? `"${query.sortBy}" COLLATE "C"`
-      : `"${query.sortBy}"`;
+    if (stringColumns.includes(query.sortBy)) {
+      qb.orderBy(
+        `b.${query.sortBy} COLLATE "C"`,
+        query.sortDirection.toUpperCase() as 'ASC' | 'DESC',
+      );
+    } else {
+      qb.orderBy(
+        `b.${query.sortBy}`,
+        query.sortDirection.toUpperCase() as 'ASC' | 'DESC',
+      );
+    }
 
-    const blogs = await this.dataSource.query(
-      `SELECT * FROM blogs
-       ${sql}
-       ORDER BY ${orderBy} ${query.sortDirection.toUpperCase()}
-       LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
-      [...params, query.pageSize, query.calculateSkip()],
-    );
+    qb.skip(query.calculateSkip()).take(query.pageSize);
 
-    const [{ count }] = await this.dataSource.query(
-      `SELECT COUNT(*) as count FROM blogs ${sql}`,
-      params,
-    );
+    const [blogs, totalCount] = await qb.getManyAndCount();
 
     return PaginatedViewDto.mapToView({
       items: blogs.map((blog) => BlogViewDto.mapToView(blog)),
-      totalCount: Number(count),
+      totalCount,
       page: query.pageNumber,
       size: query.pageSize,
     });

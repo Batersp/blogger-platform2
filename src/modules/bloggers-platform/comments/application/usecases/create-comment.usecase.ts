@@ -46,7 +46,7 @@ export class CreateCommentUseCase implements ICommandHandler<
         userLogin: user.login,
       },
     });
-    await this.commentsRepository.create(comment);
+    await this.commentsRepository.save(comment);
     return comment.id;
   }
 }

@@ -9,14 +9,14 @@ export class TestingService {
   async deleteAllData(): Promise<void> {
     await this.dataSource.query(`
       TRUNCATE TABLE
-        "commentLikes",
-        "postLikes",
+        "comment_like",
+        "post_like",
         comments,
         posts,
         blogs,
-        "userEmailConfirmationInfo",
-        "userPasswordRecoveryInfo",
-        "securityDevices",
+        "email_confirmation_info",
+        "password_recovery_info",
+        "security_device",
         users
       RESTART IDENTITY CASCADE
     `);

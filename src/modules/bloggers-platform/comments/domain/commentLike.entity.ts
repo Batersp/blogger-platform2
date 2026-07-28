@@ -1,14 +1,27 @@
 import { LIKE_STATUS } from '../../../../core/enums/likeStatus.enum';
 import { CreateCommentLikeDomainDto } from './dto/create-commentLike.domain.dto';
+import { Column, Entity, Index, JoinColumn, ManyToOne } from 'typeorm';
+import { BaseDBEntity } from '../../../../core/entities/base.entity';
+import { Comment } from './comment.entity';
 
-export class CommentLike {
-  id: string;
+@Entity()
+@Index(['commentId', 'userId'], { unique: true })
+export class CommentLike extends BaseDBEntity {
+  @Column({ type: 'uuid', nullable: false })
   commentId: string;
+
+  @Column({ type: 'uuid', nullable: false })
   userId: string;
+
+  @Column({ type: 'varchar', nullable: false })
   userLogin: string;
+
+  @Column({ type: 'enum', enum: LIKE_STATUS, nullable: false })
   likeStatus: LIKE_STATUS;
-  createdAt: Date;
-  updatedAt: Date;
+
+  @ManyToOne(() => Comment, (comment) => comment.likes, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'commentId' })
+  comment: Comment;
 
   static createInstance(dto: CreateCommentLikeDomainDto): CommentLike {
     const { commentId, userId, userLogin, likeStatus } = dto;

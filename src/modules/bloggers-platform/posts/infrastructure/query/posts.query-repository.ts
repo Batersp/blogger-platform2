@@ -1,10 +1,12 @@
 import { PaginatedViewDto } from '../../../../../core/dto/base.paginated.view-dto';
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectDataSource } from '@nestjs/typeorm';
-import { DataSource } from 'typeorm';
+import { InjectRepository } from '@nestjs/typeorm';
+import { In, Repository } from 'typeorm';
 import { PostViewDto } from '../../api/view-dto/posts.view-dto';
 import { LIKE_STATUS } from '../../../../../core/enums/likeStatus.enum';
 import { GetPostsQueryParams } from '../../api/input-dto/get-posts-query-params.input-dto';
+import { Post } from '../../domain/post.entity';
+import { PostLike } from '../../domain/postLike.entity';
 
 type NewestLike = {
   addedAt: Date;
@@ -14,35 +16,33 @@ type NewestLike = {
 
 @Injectable()
 export class PostsQueryRepository {
-  constructor(@InjectDataSource() private dataSource: DataSource) {}
+  constructor(
+    @InjectRepository(Post)
+    private postsRepo: Repository<Post>,
+    @InjectRepository(PostLike)
+    private postLikesRepo: Repository<PostLike>,
+  ) {}
 
   async getByIdOrNotFoundFail(
     id: string,
     userId?: string,
   ): Promise<PostViewDto> {
-    const [post] = await this.dataSource.query(
-      `SELECT * FROM posts WHERE id = $1 AND "deletedAt" IS NULL`,
-      [id],
-    );
-
+    const post = await this.postsRepo.findOne({ where: { id } });
     if (!post) throw new NotFoundException('post not found');
 
     let myStatus = LIKE_STATUS.NONE;
     if (userId) {
-      const [like] = await this.dataSource.query(
-        `SELECT "likeStatus" FROM "postLikes" WHERE "postId" = $1 AND "userId" = $2`,
-        [id, userId],
-      );
+      const like = await this.postLikesRepo.findOne({
+        where: { postId: id, userId },
+      });
       if (like) myStatus = like.likeStatus;
     }
 
-    const newestLikesRows = await this.dataSource.query(
-      `SELECT "userId", "userLogin", "createdAt" FROM "postLikes"
-       WHERE "postId" = $1 AND "likeStatus" = $2
-       ORDER BY "createdAt" DESC
-       LIMIT 3`,
-      [id, LIKE_STATUS.LIKE],
-    );
+    const newestLikesRows = await this.postLikesRepo.find({
+      where: { postId: id, likeStatus: LIKE_STATUS.LIKE },
+      order: { createdAt: 'DESC' },
+      take: 3,
+    });
 
     const newestLikes: NewestLike[] = newestLikesRows.map((row) => ({
       addedAt: row.createdAt,
@@ -58,32 +58,28 @@ export class PostsQueryRepository {
     blogId?: string,
     userId?: string,
   ): Promise<PaginatedViewDto<PostViewDto[]>> {
-    const params: any[] = [];
-    let paramIndex = 1;
-    let sql = `WHERE "deletedAt" IS NULL`;
+    const qb = this.postsRepo.createQueryBuilder('p');
 
     if (blogId) {
-      sql += ` AND "blogId" = $${paramIndex++}`;
-      params.push(blogId);
+      qb.andWhere('p.blogId = :blogId', { blogId });
     }
 
     const stringColumns = ['title', 'shortDescription', 'content', 'blogName'];
-    const orderBy = stringColumns.includes(query.sortBy)
-      ? `"${query.sortBy}" COLLATE "C"`
-      : `"${query.sortBy}"`;
+    if (stringColumns.includes(query.sortBy)) {
+      qb.orderBy(
+        `p.${query.sortBy} COLLATE "C"`,
+        query.sortDirection.toUpperCase() as 'ASC' | 'DESC',
+      );
+    } else {
+      qb.orderBy(
+        `p.${query.sortBy}`,
+        query.sortDirection.toUpperCase() as 'ASC' | 'DESC',
+      );
+    }
 
-    const posts = await this.dataSource.query(
-      `SELECT * FROM posts
-       ${sql}
-       ORDER BY ${orderBy} ${query.sortDirection.toUpperCase()}
-       LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
-      [...params, query.pageSize, query.calculateSkip()],
-    );
+    qb.skip(query.calculateSkip()).take(query.pageSize);
 
-    const [{ count }] = await this.dataSource.query(
-      `SELECT COUNT(*) as count FROM posts ${sql}`,
-      params,
-    );
+    const [posts, totalCount] = await qb.getManyAndCount();
 
     let likesMap = new Map<string, LIKE_STATUS>();
     const newestLikesMap = new Map<string, NewestLike[]>();
@@ -92,38 +88,27 @@ export class PostsQueryRepository {
       const postIds = posts.map((p) => p.id);
 
       if (userId) {
-        const likes = await this.dataSource.query(
-          `SELECT "postId", "likeStatus" FROM "postLikes"
-           WHERE "postId" = ANY($1) AND "userId" = $2`,
-          [postIds, userId],
-        );
+        const likes = await this.postLikesRepo.find({
+          where: { postId: In(postIds), userId },
+        });
         likesMap = new Map(likes.map((l) => [l.postId, l.likeStatus]));
       }
 
-      const newestLikesRows = await this.dataSource.query(
-        `SELECT "postId", "userId", "userLogin", "createdAt" FROM (
-           SELECT "postId", "userId", "userLogin", "createdAt",
-             ROW_NUMBER() OVER (
-               PARTITION BY "postId"
-               ORDER BY "createdAt" DESC
-             ) AS rn
-           FROM "postLikes"
-           WHERE "postId" = ANY($1) AND "likeStatus" = $2
-         ) sub
-         WHERE rn <= 3
-         ORDER BY "postId", "createdAt" DESC`,
-        [postIds, LIKE_STATUS.LIKE],
-      );
+      const allLikeRows = await this.postLikesRepo.find({
+        where: { postId: In(postIds), likeStatus: LIKE_STATUS.LIKE },
+        order: { postId: 'ASC', createdAt: 'DESC' },
+      });
 
-      for (const row of newestLikesRows) {
-        const entry: NewestLike = {
-          addedAt: row.createdAt,
-          userId: row.userId,
-          login: row.userLogin,
-        };
+      for (const row of allLikeRows) {
         const existing = newestLikesMap.get(row.postId) ?? [];
-        existing.push(entry);
-        newestLikesMap.set(row.postId, existing);
+        if (existing.length < 3) {
+          existing.push({
+            addedAt: row.createdAt,
+            userId: row.userId,
+            login: row.userLogin,
+          });
+          newestLikesMap.set(row.postId, existing);
+        }
       }
     }
 
@@ -135,7 +120,7 @@ export class PostsQueryRepository {
           newestLikesMap.get(post.id) ?? [],
         ),
       ),
-      totalCount: Number(count),
+      totalCount,
       page: query.pageNumber,
       size: query.pageSize,
     });

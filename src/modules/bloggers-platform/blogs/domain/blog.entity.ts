@@ -1,15 +1,25 @@
 import { CreateBlogDomainDto } from './dto/create-blog.domain.dto';
 import { UpdateBlogDomainDto } from './dto/update-blog.domain.dto';
+import { BaseDBEntity } from '../../../../core/entities/base.entity';
+import { Column, Entity, OneToMany } from 'typeorm';
+import { Post } from '../../posts/domain/post.entity';
 
-export class Blog {
-  id: string;
+@Entity({ name: 'blogs' })
+export class Blog extends BaseDBEntity {
+  @Column({ type: 'varchar', length: 100, nullable: false })
   name: string;
+
+  @Column({ type: 'varchar', length: 1000, nullable: false })
   description: string;
+
+  @Column({ type: 'varchar', nullable: false })
   websiteUrl: string;
+
+  @Column({ type: 'boolean', default: false, nullable: false })
   isMembership: boolean;
-  deletedAt: Date | null;
-  createdAt: Date;
-  updatedAt: Date;
+
+  @OneToMany(() => Post, (post) => post.blog)
+  posts: Post[];
 
   static createInstance(dto: CreateBlogDomainDto): Blog {
     const blog = new Blog();
@@ -27,12 +37,5 @@ export class Blog {
     this.name = name;
     this.description = description;
     this.websiteUrl = websiteUrl;
-  }
-
-  makeDeleted() {
-    if (this.deletedAt != null) {
-      throw new Error('Entity already deleted');
-    }
-    this.deletedAt = new Date();
   }
 }

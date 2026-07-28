@@ -66,13 +66,6 @@ export class PostsController {
     );
   }
 
-  /*  @Post()
-  @UseGuards(BasicAuthGuard)
-  async create(@Body() body: CreatePostInputDto): Promise<PostViewDto> {
-    const postId = await this.postService.createPost(body);
-    return this.postsQueryRepository.getByIdOrNotFoundFail(postId);
-  }*/
-
   @Post(':id/comments')
   @UseGuards(JwtAuthGuard)
   async createCommentForPost(
@@ -90,16 +83,6 @@ export class PostsController {
 
     return this.queryBus.execute(new GetCommentByIdQuery(commentId));
   }
-
-  /*  @Put(':id')
-  @HttpCode(HttpStatus.NO_CONTENT)
-  @UseGuards(BasicAuthGuard)
-  async update(
-    @Param('id') id: string,
-    @Body() body: UpdatePostInputDto,
-  ): Promise<void> {
-    return this.postService.updatePost(body, id);
-  }*/
 
   @Put(':id/like-status')
   @HttpCode(HttpStatus.NO_CONTENT)

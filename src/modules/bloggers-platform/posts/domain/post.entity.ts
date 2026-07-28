@@ -1,19 +1,47 @@
 import { CreatePostDomainDto } from './dto/create-post.domain.dto';
 import { UpdatePostDomainDto } from './dto/update-post.domain.dto';
 import { LIKE_STATUS } from '../../../../core/enums/likeStatus.enum';
+import { Column, Entity, JoinColumn, ManyToOne, OneToMany } from 'typeorm';
+import { BaseDBEntity } from '../../../../core/entities/base.entity';
+import { Blog } from '../../blogs/domain/blog.entity';
+import { PostLike } from './postLike.entity';
+import { Comment } from '../../comments/domain/comment.entity';
 
-export class Post {
-  id: string;
+@Entity({ name: 'posts' })
+export class Post extends BaseDBEntity {
+  @Column({ type: 'varchar', length: 100, nullable: false })
   title: string;
+
+  @Column({ type: 'varchar', length: 1000, nullable: false })
   shortDescription: string;
+
+  @Column({ type: 'varchar', length: 2000, nullable: false })
   content: string;
+
+  @Column({ type: 'uuid', nullable: true })
   blogId: string | null;
+
+  @Column({ type: 'varchar', length: 100, nullable: false })
   blogName: string;
+
+  @Column({ type: 'int', default: 0 })
   likesCount: number;
+
+  @Column({ type: 'int', default: 0 })
   dislikesCount: number;
-  deletedAt: Date | null;
-  createdAt: Date;
-  updatedAt: Date;
+
+  @ManyToOne(() => Blog, (blog) => blog.posts, {
+    nullable: true,
+    onDelete: 'SET NULL',
+  })
+  @JoinColumn({ name: 'blogId' })
+  blog: Blog;
+
+  @OneToMany(() => PostLike, (like) => like.post)
+  likes: PostLike[];
+
+  @OneToMany(() => Comment, (comment) => comment.post)
+  comments: Comment[];
 
   static createInstance(dto: CreatePostDomainDto, blogName: string): Post {
     const post = new Post();

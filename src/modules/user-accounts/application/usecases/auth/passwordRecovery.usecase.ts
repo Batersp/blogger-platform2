@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { add } from 'date-fns';
 import { UsersRepository } from '../../../infrastructure/users.repository';
 import { EmailService } from '../../../../notifications/email.service';
+import { PasswordRecoveryInfo } from '../../../domain/passwordRecoveryInfo.entity';
 
 interface PasswordRecoveryCommandProps {
   email: string;
@@ -32,7 +33,12 @@ export class PasswordRecoveryUseCase implements ICommandHandler<
     const code = randomUUID();
     const expirationDate = add(new Date(), { hours: 1 });
 
-    user.savePasswordRecoveryCode(code, expirationDate);
+    const passwordRecoveryInfo = PasswordRecoveryInfo.createInstance(
+      user,
+      code,
+      expirationDate,
+    );
+    user.setPasswordRecoveryCode(passwordRecoveryInfo);
     await this.usersRepository.save(user);
     await this.emailService.sendPasswordRecovery(email, code);
   }

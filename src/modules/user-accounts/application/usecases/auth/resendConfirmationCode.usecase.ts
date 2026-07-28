@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { add } from 'date-fns';
 import { UsersRepository } from '../../../infrastructure/users.repository';
 import { EmailService } from '../../../../notifications/email.service';
+import { EmailConfirmationInfo } from '../../../domain/emailConfirmationInfo.entity';
 
 interface ResendConfirmationCodeCommandProps {
   email: string;
@@ -51,7 +52,12 @@ export class ResendConfirmationCodeUseCase implements ICommandHandler<
       hours: 1,
       minutes: 30,
     });
-    user.updateConfirmationCode(newCode, newExpiration);
+    const confirmationCodeInfo = EmailConfirmationInfo.createInstance(
+      user,
+      newCode,
+      newExpiration,
+    );
+    user.setConfirmationCode(confirmationCodeInfo);
     await this.usersRepository.save(user);
     await this.emailService.sendConfirmationEmail(email, newCode);
   }

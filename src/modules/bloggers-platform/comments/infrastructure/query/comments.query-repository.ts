@@ -3,30 +3,32 @@ import { CommentViewDto } from '../../api/view-dto/comments.view-dto';
 import { GetCommentsQueryParams } from '../../api/input-dto/get-comments-query-params.input-dto';
 import { PaginatedViewDto } from '../../../../../core/dto/base.paginated.view-dto';
 import { LIKE_STATUS } from '../../../../../core/enums/likeStatus.enum';
-import { InjectDataSource } from '@nestjs/typeorm';
-import { DataSource } from 'typeorm';
+import { InjectRepository } from '@nestjs/typeorm';
+import { In, Repository } from 'typeorm';
+import { CommentLike } from '../../domain/commentLike.entity';
+import { Comment } from '../../domain/comment.entity';
 
 @Injectable()
 export class CommentsQueryRepository {
-  constructor(@InjectDataSource() private dataSource: DataSource) {}
+  constructor(
+    @InjectRepository(Comment)
+    private commentsRepo: Repository<Comment>,
+    @InjectRepository(CommentLike)
+    private commentLikesRepo: Repository<CommentLike>,
+  ) {}
 
   async getByIdOrNotFoundFail(
     id: string,
     userId?: string,
   ): Promise<CommentViewDto> {
-    const [comment] = await this.dataSource.query(
-      `SELECT * FROM comments WHERE id = $1 AND "deletedAt" IS NULL`,
-      [id],
-    );
-
+    const comment = await this.commentsRepo.findOne({ where: { id } });
     if (!comment) throw new NotFoundException('comment not found');
 
     let myStatus = LIKE_STATUS.NONE;
     if (userId) {
-      const [like] = await this.dataSource.query(
-        `SELECT "likeStatus" FROM "commentLikes" WHERE "commentId" = $1 AND "userId" = $2`,
-        [id, userId],
-      );
+      const like = await this.commentLikesRepo.findOne({
+        where: { commentId: id, userId },
+      });
       if (like) myStatus = like.likeStatus;
     }
 
@@ -38,41 +40,35 @@ export class CommentsQueryRepository {
     postId?: string,
     userId?: string,
   ): Promise<PaginatedViewDto<CommentViewDto[]>> {
-    const params: any[] = [];
-    let paramIndex = 1;
-    let sql = `WHERE "deletedAt" IS NULL`;
+    const qb = this.commentsRepo.createQueryBuilder('c');
 
     if (postId) {
-      sql += ` AND "postId" = $${paramIndex++}`;
-      params.push(postId);
+      qb.andWhere('c.postId = :postId', { postId });
     }
 
     const stringColumns = ['content', 'userLogin'];
-    const orderBy = stringColumns.includes(query.sortBy)
-      ? `"${query.sortBy}" COLLATE "C"`
-      : `"${query.sortBy}"`;
+    if (stringColumns.includes(query.sortBy)) {
+      qb.orderBy(
+        `c.${query.sortBy} COLLATE "C"`,
+        query.sortDirection.toUpperCase() as 'ASC' | 'DESC',
+      );
+    } else {
+      qb.orderBy(
+        `c.${query.sortBy}`,
+        query.sortDirection.toUpperCase() as 'ASC' | 'DESC',
+      );
+    }
 
-    const comments = await this.dataSource.query(
-      `SELECT * FROM comments
-       ${sql}
-       ORDER BY ${orderBy} ${query.sortDirection.toUpperCase()}
-       LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
-      [...params, query.pageSize, query.calculateSkip()],
-    );
+    qb.skip(query.calculateSkip()).take(query.pageSize);
 
-    const [{ count }] = await this.dataSource.query(
-      `SELECT COUNT(*) as count FROM comments ${sql}`,
-      params,
-    );
+    const [comments, totalCount] = await qb.getManyAndCount();
 
     let likesMap = new Map<string, LIKE_STATUS>();
     if (userId && comments.length > 0) {
       const commentIds = comments.map((c) => c.id);
-      const likes = await this.dataSource.query(
-        `SELECT "commentId", "likeStatus" FROM "commentLikes"
-         WHERE "commentId" = ANY($1) AND "userId" = $2`,
-        [commentIds, userId],
-      );
+      const likes = await this.commentLikesRepo.find({
+        where: { commentId: In(commentIds), userId },
+      });
       likesMap = new Map(likes.map((l) => [l.commentId, l.likeStatus]));
     }
 
@@ -83,7 +79,7 @@ export class CommentsQueryRepository {
           likesMap.get(comment.id) ?? LIKE_STATUS.NONE,
         ),
       ),
-      totalCount: Number(count),
+      totalCount,
       page: query.pageNumber,
       size: query.pageSize,
     });

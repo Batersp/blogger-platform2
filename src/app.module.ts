@@ -23,8 +23,9 @@ import { TypeOrmModule } from '@nestjs/typeorm';
       username: 'postgres',
       password: '261432304',
       database: 'blogger-platform',
-      autoLoadEntities: false,
-      synchronize: false,
+      autoLoadEntities: process.env.NODE_ENV === 'development',
+      synchronize: process.env.NODE_ENV === 'development',
+      logging: true,
     }),
     UserAccountsModule,
     BloggersPlatformModule,
@@ -33,7 +34,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
     ThrottlerModule.forRoot([
       {
         ttl: 10000, // 10 секунд в миллисекундах
-        limit: 500000, // максимум 5 запросов
+        limit: 5, // максимум 5 запросов
       },
     ]),
   ],

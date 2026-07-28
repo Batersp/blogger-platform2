@@ -61,7 +61,7 @@ export class LoginUseCase implements ICommandHandler<
       ip,
     });
 
-    await this.securityDevicesRepository.create(securityDevice);
+    await this.securityDevicesRepository.save(securityDevice);
 
     return {
       accessToken,

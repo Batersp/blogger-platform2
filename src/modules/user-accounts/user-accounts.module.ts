@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common';
-import { MongooseModule } from '@nestjs/mongoose';
 import { UsersRepository } from './infrastructure/users.repository';
 import { UsersQueryRepository } from './infrastructure/query/users.query-repository';
 import { UsersService } from './application/user.service';
@@ -35,6 +34,11 @@ import { ResendConfirmationCodeUseCase } from './application/usecases/auth/resen
 import { PasswordRecoveryUseCase } from './application/usecases/auth/passwordRecovery.usecase';
 import { CreateNewPasswordUseCase } from './application/usecases/auth/createNewPassword.usecase';
 import { MeQueryHandler } from './application/queries/auth/me.query';
+import { User } from './domain/user.entity';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { EmailConfirmationInfo } from './domain/emailConfirmationInfo.entity';
+import { PasswordRecoveryInfo } from './domain/passwordRecoveryInfo.entity';
+import { SecurityDevice } from './domain/securityDevice.entity';
 
 const commandHandlers = [
   DeleteUserUseCase,
@@ -57,7 +61,16 @@ const queryHandlers = [
 ];
 
 @Module({
-  imports: [JwtModule, NotificationsModule],
+  imports: [
+    TypeOrmModule.forFeature([
+      User,
+      EmailConfirmationInfo,
+      PasswordRecoveryInfo,
+      SecurityDevice,
+    ]),
+    JwtModule,
+    NotificationsModule,
+  ],
   controllers: [UsersController, AuthController, SecurityDevicesController],
   providers: [
     UsersRepository,
@@ -75,7 +88,7 @@ const queryHandlers = [
       useFactory: (coreConfig: CoreConfig): JwtService => {
         return new JwtService({
           secret: coreConfig.accessTokenSecret,
-          signOptions: { expiresIn: '10m' },
+          signOptions: { expiresIn: '10s' },
         });
       },
       inject: [CoreConfig],
@@ -85,7 +98,7 @@ const queryHandlers = [
       useFactory: (coreConfig: CoreConfig): JwtService => {
         return new JwtService({
           secret: coreConfig.refreshTokenSecret,
-          signOptions: { expiresIn: '20m' },
+          signOptions: { expiresIn: '20s' },
         });
       },
       inject: [CoreConfig],

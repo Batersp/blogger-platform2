@@ -62,7 +62,7 @@ export class RefreshTokenUseCase implements ICommandHandler<
     const accessToken = this.accessTokenContext.sign({ id: userId });
     const newRefreshToken = this.refreshTokenContext.sign({ userId, deviceId });
 
-    const { iat: newIat, exp: newExp } =
+    const { iat: newIat, exp: newExp }: { iat: number; exp: number } =
       this.refreshTokenContext.decode(newRefreshToken);
 
     session.update({

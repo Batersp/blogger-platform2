@@ -9,6 +9,7 @@ import { add } from 'date-fns';
 import { CreateUserCommand } from '../users/create-user.usecase';
 import { UsersRepository } from '../../../infrastructure/users.repository';
 import { EmailService } from '../../../../notifications/email.service';
+import { EmailConfirmationInfo } from '../../../domain/emailConfirmationInfo.entity';
 
 interface RegistrationCommandProps {
   login: string;
@@ -47,13 +48,15 @@ export class RegistrationUseCase implements ICommandHandler<
     );
     const confirmCode = randomUUID();
     const user = await this.usersRepository.findOrNotFoundFail(createdUserId);
-    user.setConfirmationCode(
+    const confirmationCode = EmailConfirmationInfo.createInstance(
+      user,
       confirmCode,
       add(new Date(), {
         hours: 1,
         minutes: 30,
       }),
     );
+    user.setConfirmationCode(confirmationCode);
     await this.usersRepository.save(user);
     await this.emailService.sendConfirmationEmail(user.email, confirmCode);
   }

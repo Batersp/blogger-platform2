@@ -33,6 +33,12 @@ import { UpdatePostLikeStatusUseCase } from './posts/application/usecases/update
 import { GetPostByIdQueryHandler } from './posts/application/queries/get-postById.query';
 import { GetCommentByIdQueryHandler } from './comments/application/queries/get-commentById.query';
 import { GetCommentsForPostQueryHandler } from './comments/application/queries/get-comments.query';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { Blog } from './blogs/domain/blog.entity';
+import { Post } from './posts/domain/post.entity';
+import { PostLike } from './posts/domain/postLike.entity';
+import { Comment } from './comments/domain/comment.entity';
+import { CommentLike } from './comments/domain/commentLike.entity';
 
 const queryHandlers = [
   GetAllBlogsQueryHandler,
@@ -59,7 +65,10 @@ const commandHandlers = [
 ];
 
 @Module({
-  imports: [UserAccountsModule],
+  imports: [
+    TypeOrmModule.forFeature([Blog, Post, PostLike, Comment, CommentLike]),
+    UserAccountsModule,
+  ],
   controllers: [
     BlogsController,
     SaBlogsController,

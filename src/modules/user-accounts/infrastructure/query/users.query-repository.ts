@@ -2,23 +2,19 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { UserViewDto } from '../../api/view-dto/users.view-dto';
 import { GetUsersQueryParams } from '../../api/input-dto/get-users-query-params.input-dto';
 import { PaginatedViewDto } from '../../../../core/dto/base.paginated.view-dto';
-import { InjectDataSource } from '@nestjs/typeorm';
-import { DataSource } from 'typeorm';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Brackets, Repository } from 'typeorm';
+import { User } from '../../domain/user.entity';
 
 @Injectable()
 export class UsersQueryRepository {
-  constructor(@InjectDataSource() protected dataSource: DataSource) {}
+  constructor(
+    @InjectRepository(User)
+    private usersRepo: Repository<User>,
+  ) {}
 
   async getByIdOrNotFoundFail(id: string): Promise<UserViewDto> {
-    const [user] = await this.dataSource.query(
-      `SELECT id, login, email, "createdAt"
-     FROM users
-     WHERE id = $1 AND "deletedAt" IS NULL`,
-      [id],
-    );
-
-    console.log(id);
-
+    const user = await this.usersRepo.findOne({ where: { id } });
     if (!user) {
       throw new NotFoundException('user not found');
     }
@@ -29,86 +25,50 @@ export class UsersQueryRepository {
   async getAll(
     query: GetUsersQueryParams,
   ): Promise<PaginatedViewDto<UserViewDto[]>> {
-    function buildWhere(
-      searchLoginTerm: string | null,
-      searchEmailTerm: string | null,
-    ) {
-      const params: any[] = [];
-      const searchConditions: string[] = [];
-      let paramIndex = 1;
-
-      if (searchLoginTerm) {
-        searchConditions.push(`login ILIKE $${paramIndex++}`);
-        params.push(`%${searchLoginTerm}%`);
-      }
-
-      if (searchEmailTerm) {
-        searchConditions.push(`email ILIKE $${paramIndex++}`);
-        params.push(`%${searchEmailTerm}%`);
-      }
-
-      // deletedAt IS NULL — обязательное условие
-      // поисковые условия объединяются через OR между собой
-      let sql = `WHERE "deletedAt" IS NULL`;
-      if (searchConditions.length > 0) {
-        sql += ` AND (${searchConditions.join(' OR ')})`;
-      }
-
-      return { sql, params };
-    }
-
-    const {
-      searchLoginTerm,
-      searchEmailTerm,
-      sortBy,
-      sortDirection,
-      pageSize,
-    } = query;
+    const { searchLoginTerm, searchEmailTerm, sortBy, sortDirection } = query;
     const skip = query.calculateSkip();
 
-    // Собираем условия WHERE
-    const conditions: string[] = ['"deletedAt" IS NULL'];
-    const params: any[] = [];
-    let paramIndex = 1;
+    const qb = this.usersRepo
+      .createQueryBuilder('u')
+      .where('u.deletedAt IS NULL');
 
-    if (searchLoginTerm) {
-      conditions.push(`login ILIKE $${paramIndex++}`);
-      params.push(`%${searchLoginTerm}%`);
+    if (searchLoginTerm || searchEmailTerm) {
+      qb.andWhere(
+        new Brackets((qbInner) => {
+          if (searchLoginTerm) {
+            qbInner.orWhere('u.login ILIKE :searchLoginTerm', {
+              searchLoginTerm: `%${searchLoginTerm}%`,
+            });
+          }
+          if (searchEmailTerm) {
+            qbInner.orWhere('u.email ILIKE :searchEmailTerm', {
+              searchEmailTerm: `%${searchEmailTerm}%`,
+            });
+          }
+        }),
+      );
     }
 
-    if (searchEmailTerm) {
-      conditions.push(`email ILIKE $${paramIndex++}`);
-      params.push(`%${searchEmailTerm}%`);
-    }
-
-    const where = buildWhere(searchLoginTerm, searchEmailTerm);
-
-    // Запрос данных
     const stringColumns = ['login', 'email'];
-    const orderBy = stringColumns.includes(sortBy)
-      ? `"${sortBy}" COLLATE "C"`
-      : `"${sortBy}"`;
+    if (stringColumns.includes(sortBy)) {
+      // COLLATE "C" для строковых колонок, чтобы сортировка была регистрозависимой/предсказуемой
+      qb.addOrderBy(
+        `u.${sortBy} COLLATE "C"`,
+        sortDirection.toUpperCase() as 'ASC' | 'DESC',
+      );
+    } else {
+      qb.orderBy(`u.${sortBy}`, sortDirection.toUpperCase() as 'ASC' | 'DESC');
+    }
 
-    const users = await this.dataSource.query(
-      `SELECT id, login, email, "createdAt"
-   FROM users
-   ${where.sql}
-   ORDER BY ${orderBy} ${sortDirection.toUpperCase()}
-   LIMIT $${where.params.length + 1} OFFSET $${where.params.length + 2}`,
-      [...where.params, pageSize, skip],
-    );
+    qb.skip(skip).take(query.pageSize);
 
-    // Запрос общего количества
-    const [{ count }] = await this.dataSource.query(
-      `SELECT COUNT(*) as count FROM users ${where.sql}`,
-      where.params,
-    );
+    const [users, totalCount] = await qb.getManyAndCount();
 
     const items = users.map((user) => UserViewDto.mapToView(user));
 
     return PaginatedViewDto.mapToView({
       items,
-      totalCount: Number(count),
+      totalCount,
       page: query.pageNumber,
       size: query.pageSize,
     });

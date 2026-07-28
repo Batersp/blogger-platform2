@@ -61,7 +61,7 @@ export class UpdatePostLikeStatusUseCase implements ICommandHandler<
         userLogin: user.login,
         likeStatus: newStatus,
       });
-      await this.postLikesRepository.create(newLike);
+      await this.postLikesRepository.save(newLike);
     }
   }
 }

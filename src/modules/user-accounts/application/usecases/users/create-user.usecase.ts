@@ -68,8 +68,7 @@ export class CreateUserUseCase implements ICommandHandler<
       email,
       passwordHash,
     });
-
-    await this.usersRepository.create(user);
+    await this.usersRepository.save(user);
     return user.id;
   }
 }

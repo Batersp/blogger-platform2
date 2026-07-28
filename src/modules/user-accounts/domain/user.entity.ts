@@ -1,4 +1,9 @@
 import { CreateUserDomainDto } from './dto/create-user.domain.dto';
+import { Column, Entity, OneToMany, OneToOne } from 'typeorm';
+import { BaseDBEntity } from '../../../core/entities/base.entity';
+import { EmailConfirmationInfo } from './emailConfirmationInfo.entity';
+import { PasswordRecoveryInfo } from './passwordRecoveryInfo.entity';
+import { SecurityDevice } from './securityDevice.entity';
 
 export const loginConstraints = {
   minLength: 3,
@@ -10,27 +15,37 @@ export const passwordConstraints = {
   maxLength: 20,
 };
 
-export class EmailConfirmationInfo {
-  confirmationCode: string;
-  expirationDate: Date;
-  isConfirmed: boolean;
-}
-
-export class PasswordRecoveryInfo {
-  recoveryCode: string;
-  expirationDate: Date;
-}
-
-export class User {
-  id: string;
+@Entity({ name: 'users' })
+export class User extends BaseDBEntity {
+  @Column({ type: 'varchar', length: 100 })
   login: string;
+  @Column({ type: 'varchar', length: 100 })
   email: string;
+  @Column({ type: 'varchar', length: 100 })
   passwordHash: string;
-  deletedAt: Date | null;
+
+  @OneToOne(
+    () => EmailConfirmationInfo,
+    (emailConfirmationInfo) => emailConfirmationInfo.user,
+    {
+      cascade: true,
+      eager: true, // чтобы инфа всегда подтягиваласьь без явного указания relations в репозитории
+    },
+  )
   emailConfirmation: EmailConfirmationInfo | null;
+
+  @OneToOne(
+    () => PasswordRecoveryInfo,
+    (passwordRecoveryInfo) => passwordRecoveryInfo.user,
+    {
+      cascade: true,
+      eager: true,
+    },
+  )
   passwordRecovery: PasswordRecoveryInfo | null;
-  createdAt: Date;
-  updatedAt: Date;
+
+  @OneToMany(() => SecurityDevice, (device) => device.user)
+  securityDevices: SecurityDevice[];
 
   static createInstance(dto: CreateUserDomainDto): User {
     const user = new User();
@@ -46,50 +61,22 @@ export class User {
     return user;
   }
 
-  makeDeleted() {
-    if (this.deletedAt != null) {
-      throw new Error('Entity already deleted');
-    }
-    this.deletedAt = new Date();
-  }
-
-  setConfirmationCode(code: string, expirationDate: Date) {
-    this.emailConfirmation = {
-      confirmationCode: code,
-      expirationDate: new Date(expirationDate),
-      isConfirmed: false,
-    };
+  setConfirmationCode(confirmationCode: EmailConfirmationInfo) {
+    this.emailConfirmation = confirmationCode;
   }
 
   confirmCode() {
     if (this.emailConfirmation) {
-      this.emailConfirmation.isConfirmed = true;
+      this.emailConfirmation.confirm();
     }
   }
 
-  updateConfirmationCode(code: string, expirationDate: Date) {
-    this.emailConfirmation = {
-      confirmationCode: code,
-      expirationDate,
-      isConfirmed: false,
-    };
-  }
-
-  savePasswordRecoveryCode(code: string, expirationDate: Date) {
-    this.passwordRecovery = {
-      recoveryCode: code,
-      expirationDate,
-    };
+  setPasswordRecoveryCode(passwordRecoveryInfo: PasswordRecoveryInfo) {
+    this.passwordRecovery = passwordRecoveryInfo;
   }
 
   updatePassword(passHash: string) {
     this.passwordHash = passHash;
     this.passwordRecovery = null;
-  }
-
-  get isEmailConfirmed(): boolean {
-    return (
-      this.emailConfirmation === null || this.emailConfirmation.isConfirmed
-    );
   }
 }
