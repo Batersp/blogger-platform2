@@ -12,20 +12,14 @@ import { DomainHttpExceptionsFilter } from './core/exceptions/filters/domain-exc
 import { ThrottlerModule } from '@nestjs/throttler';
 import { configModule } from './dynamic-config-module';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { options } from './db/options';
 
 @Module({
   imports: [
     configModule,
     TypeOrmModule.forRoot({
-      type: 'postgres',
-      host: 'localhost',
-      port: 5432,
-      username: 'postgres',
-      password: '261432304',
-      database: 'blogger-platform',
-      autoLoadEntities: process.env.NODE_ENV === 'development',
-      synchronize: process.env.NODE_ENV === 'development',
-      logging: true,
+      ...options,
+      autoLoadEntities: true,
     }),
     UserAccountsModule,
     BloggersPlatformModule,
@@ -34,7 +28,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
     ThrottlerModule.forRoot([
       {
         ttl: 10000, // 10 секунд в миллисекундах
-        limit: 5, // максимум 5 запросов
+        limit: 50000, // максимум 5 запросов
       },
     ]),
   ],

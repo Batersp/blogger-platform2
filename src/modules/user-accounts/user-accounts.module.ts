@@ -88,7 +88,7 @@ const queryHandlers = [
       useFactory: (coreConfig: CoreConfig): JwtService => {
         return new JwtService({
           secret: coreConfig.accessTokenSecret,
-          signOptions: { expiresIn: '10s' },
+          signOptions: { expiresIn: '10m' },
         });
       },
       inject: [CoreConfig],
@@ -98,7 +98,7 @@ const queryHandlers = [
       useFactory: (coreConfig: CoreConfig): JwtService => {
         return new JwtService({
           secret: coreConfig.refreshTokenSecret,
-          signOptions: { expiresIn: '20s' },
+          signOptions: { expiresIn: '20m' },
         });
       },
       inject: [CoreConfig],
