@@ -1,12 +1,22 @@
 import { LIKE_STATUS } from '../../../../core/enums/likeStatus.enum';
 import { CreateCommentLikeDomainDto } from './dto/create-commentLike.domain.dto';
-import { Column, Entity, Index, JoinColumn, ManyToOne } from 'typeorm';
+import {
+  Column,
+  Entity,
+  Index,
+  JoinColumn,
+  ManyToOne,
+  UpdateDateColumn,
+} from 'typeorm';
 import { BaseDBEntity } from '../../../../core/entities/base.entity';
 import { Comment } from './comment.entity';
 
 @Entity()
 @Index(['commentId', 'userId'], { unique: true })
 export class CommentLike extends BaseDBEntity {
+  @UpdateDateColumn()
+  updatedAt: Date | null;
+
   @Column({ type: 'uuid', nullable: false })
   commentId: string;
 

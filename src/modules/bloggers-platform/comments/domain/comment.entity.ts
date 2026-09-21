@@ -1,14 +1,23 @@
 import { CreateCommentDomainDto } from './dto/create-comment.domain.dto';
 import { UpdateCommentDomainDto } from './dto/update-comment.domain.dto';
 import { LIKE_STATUS } from '../../../../core/enums/likeStatus.enum';
-import { Column, Entity, JoinColumn, ManyToOne, OneToMany } from 'typeorm';
+import {
+  Column,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  OneToMany,
+  UpdateDateColumn,
+} from 'typeorm';
 import { BaseDBEntity } from '../../../../core/entities/base.entity';
 import { Post } from '../../posts/domain/post.entity';
-import { PostLike } from '../../posts/domain/postLike.entity';
 import { CommentLike } from './commentLike.entity';
 
 @Entity({ name: 'comments' })
 export class Comment extends BaseDBEntity {
+  @UpdateDateColumn()
+  updatedAt: Date | null;
+
   @Column({ type: 'varchar', length: 1000, nullable: false })
   content: string;
 

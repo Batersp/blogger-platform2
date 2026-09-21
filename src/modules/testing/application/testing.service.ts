@@ -17,7 +17,11 @@ export class TestingService {
         "email_confirmation_info",
         "password_recovery_info",
         "security_device",
-        users
+        users,
+        answer,
+        game,
+        "game_question",
+        questions
       RESTART IDENTITY CASCADE
     `);
   }

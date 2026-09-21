@@ -1,6 +1,13 @@
 import { CreateSecurityDeviceDomainDto } from './dto/create-securityDevice.domain.dto';
 import { UpdateSecurityDeviceDomainDto } from './dto/update-securityDevice.domain.dto';
-import { Column, Entity, JoinColumn, ManyToOne, PrimaryColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  PrimaryColumn,
+  UpdateDateColumn,
+} from 'typeorm';
 import { BaseEntity } from '../../../core/entities/base.entity';
 import { User } from './user.entity';
 
@@ -8,6 +15,9 @@ import { User } from './user.entity';
 export class SecurityDevice extends BaseEntity {
   @PrimaryColumn({ type: 'varchar', unique: true })
   deviceId: string;
+
+  @UpdateDateColumn()
+  updatedAt: Date | null;
 
   @Column({ type: 'int' })
   iat: number;

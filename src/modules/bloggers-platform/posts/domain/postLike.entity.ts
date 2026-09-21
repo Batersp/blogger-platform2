@@ -1,12 +1,22 @@
 import { LIKE_STATUS } from '../../../../core/enums/likeStatus.enum';
 import { CreatePostLikeDomainDto } from './dto/create-postLike.domain.dto';
-import { Column, Entity, Index, JoinColumn, ManyToOne } from 'typeorm';
+import {
+  Column,
+  Entity,
+  Index,
+  JoinColumn,
+  ManyToOne,
+  UpdateDateColumn,
+} from 'typeorm';
 import { BaseDBEntity } from '../../../../core/entities/base.entity';
 import { Post } from './post.entity';
 
 @Entity()
 @Index(['postId', 'userId'], { unique: true })
 export class PostLike extends BaseDBEntity {
+  @UpdateDateColumn()
+  updatedAt: Date | null;
+
   @Column({ type: 'varchar', nullable: false })
   postId: string;
 

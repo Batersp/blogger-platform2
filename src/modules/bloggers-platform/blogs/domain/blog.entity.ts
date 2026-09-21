@@ -1,11 +1,14 @@
 import { CreateBlogDomainDto } from './dto/create-blog.domain.dto';
 import { UpdateBlogDomainDto } from './dto/update-blog.domain.dto';
 import { BaseDBEntity } from '../../../../core/entities/base.entity';
-import { Column, Entity, OneToMany } from 'typeorm';
+import { Column, Entity, OneToMany, UpdateDateColumn } from 'typeorm';
 import { Post } from '../../posts/domain/post.entity';
 
 @Entity({ name: 'blogs' })
 export class Blog extends BaseDBEntity {
+  @UpdateDateColumn()
+  updatedAt: Date | null;
+
   @Column({ type: 'varchar', length: 100, nullable: false })
   name: string;
 

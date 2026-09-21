@@ -13,6 +13,7 @@ import { ThrottlerModule } from '@nestjs/throttler';
 import { configModule } from './dynamic-config-module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { options } from './db/options';
+import { QuizModule } from './modules/quiz/quiz.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { options } from './db/options';
     }),
     UserAccountsModule,
     BloggersPlatformModule,
+    QuizModule,
     CoreModule,
     TestingModule,
     ThrottlerModule.forRoot([

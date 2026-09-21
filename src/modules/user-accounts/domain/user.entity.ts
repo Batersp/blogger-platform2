@@ -1,5 +1,5 @@
 import { CreateUserDomainDto } from './dto/create-user.domain.dto';
-import { Column, Entity, OneToMany, OneToOne } from 'typeorm';
+import { Column, Entity, OneToMany, OneToOne, UpdateDateColumn } from 'typeorm';
 import { BaseDBEntity } from '../../../core/entities/base.entity';
 import { EmailConfirmationInfo } from './emailConfirmationInfo.entity';
 import { PasswordRecoveryInfo } from './passwordRecoveryInfo.entity';
@@ -17,6 +17,9 @@ export const passwordConstraints = {
 
 @Entity({ name: 'users' })
 export class User extends BaseDBEntity {
+  @UpdateDateColumn()
+  updatedAt: Date | null;
+
   @Column({ type: 'varchar', length: 100 })
   login: string;
   @Column({ type: 'varchar', length: 100 })
