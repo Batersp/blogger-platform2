@@ -6,6 +6,7 @@ import {
   HttpStatus,
   Param,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
@@ -18,6 +19,11 @@ import { GetGameByIdQuery } from '../application/queries/get-game-by-id.query';
 import { ConnectionCommand } from '../application/usecases/connection.usecase';
 import { AnswerInputDto } from './input-dto/answer.input-dto';
 import { SendAnswerCommand } from '../application/usecases/send-answer.usecase';
+import { GetMyGamesQueryParams } from './input-dto/get-my-games-query-params.input-dto';
+import { GetMyGamesQuery } from '../application/queries/get-my-games.query';
+import { PaginatedViewDto } from '../../../core/dto/base.paginated.view-dto';
+import { GetMyStatisticQuery } from '../application/queries/get-my-statistic.query';
+import { MyStatisticViewDto } from './view-dto/my-statistic.view-dto';
 
 @Controller('pair-game-quiz')
 @UseGuards(JwtAuthGuard)
@@ -32,6 +38,21 @@ export class QuizController {
     @ExtractUserFromRequest() user: UserContextDto | null,
   ): Promise<GamePairViewDto> {
     return this.queryBus.execute(new GetCurrentGameQuery(user!.id));
+  }
+
+  @Get('pairs/my')
+  async getMyGames(
+    @Query() query: GetMyGamesQueryParams,
+    @ExtractUserFromRequest() user: UserContextDto | null,
+  ): Promise<PaginatedViewDto<GamePairViewDto[]>> {
+    return this.queryBus.execute(new GetMyGamesQuery(user!.id, query));
+  }
+
+  @Get('users/my-statistic')
+  async getMyStatistic(
+    @ExtractUserFromRequest() user: UserContextDto | null,
+  ): Promise<MyStatisticViewDto> {
+    return this.queryBus.execute(new GetMyStatisticQuery(user!.id));
   }
 
   @Get('pairs/:id')

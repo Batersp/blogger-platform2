@@ -20,11 +20,15 @@ import { SaQuizQuestionsController } from './api/sa-quiz.controller';
 import { QuestionsRepository } from './infrastructure/questions.repository';
 import { QuestionsQueryRepository } from './infrastructure/query/questions.query-repository';
 import { DeleteQuestionUseCase } from './application/usecases/delete-question.usecase';
+import { GetMyStatisticQueryHandler } from './application/queries/get-my-statistic.query';
+import { GetMyGamesQueryHandler } from './application/queries/get-my-games.query';
 
 const queryHandlers = [
   GetCurrentGameQueryHandler,
   GetGameByIdQueryHandler,
   GetQuestionsQueryHandler,
+  GetMyGamesQueryHandler,
+  GetMyStatisticQueryHandler,
 ];
 
 const commandHandlers = [

@@ -17,6 +17,9 @@ import {
   QuestionViewDto,
 } from '../../api/view-dto/game.view-dto';
 import { isUUID } from 'class-validator';
+import { GetMyGamesQueryParams } from '../../api/input-dto/get-my-games-query-params.input-dto';
+import { PaginatedViewDto } from '../../../../core/dto/base.paginated.view-dto';
+import { MyStatisticViewDto } from '../../api/view-dto/my-statistic.view-dto';
 
 @Injectable()
 export class QuizQueryRepository {
@@ -60,6 +63,82 @@ export class QuizQueryRepository {
       throw new ForbiddenException('You are not a participant of this game');
     }
     return this.mapToView(game);
+  }
+
+  async getMyGames(
+    userId: string,
+    query: GetMyGamesQueryParams,
+  ): Promise<PaginatedViewDto<GamePairViewDto[]>> {
+    const qb = this.gameRepo
+      .createQueryBuilder('g')
+      .where('(g.firstPlayerId = :userId OR g.secondPlayerId = :userId)', {
+        userId,
+      })
+      .orderBy(
+        `g.${query.sortBy}`,
+        query.sortDirection.toUpperCase() as 'ASC' | 'DESC',
+      )
+      .addOrderBy('g.pairCreatedDate', 'DESC')
+      .skip(query.calculateSkip())
+      .take(query.pageSize);
+
+    const [games, totalCount] = await qb.getManyAndCount();
+
+    const items = await Promise.all(games.map((g) => this.mapToView(g)));
+
+    return PaginatedViewDto.mapToView<GamePairViewDto[]>({
+      items,
+      totalCount,
+      page: query.pageNumber,
+      size: query.pageSize,
+    });
+  }
+
+  async getMyStatistic(userId: string): Promise<MyStatisticViewDto> {
+    const rows = await this.gameRepo
+      .createQueryBuilder('g')
+      .select([
+        `CASE WHEN g.firstPlayerId = :userId THEN g.firstPlayerScore ELSE g.secondPlayerScore END AS "myScore"`,
+        `CASE WHEN g.firstPlayerId = :userId THEN g.secondPlayerScore ELSE g.firstPlayerScore END AS "opponentScore"`,
+      ])
+      .where('(g.firstPlayerId = :userId OR g.secondPlayerId = :userId)', {
+        userId,
+      })
+      .andWhere('g.status = :status', { status: GAME_STATUS.FINISHED })
+      .setParameter('userId', userId)
+      .getRawMany<{ myScore: number; opponentScore: number }>();
+
+    if (rows.length === 0) {
+      return {
+        sumScore: 0,
+        avgScores: 0,
+        gamesCount: 0,
+        winsCount: 0,
+        lossesCount: 0,
+        drawsCount: 0,
+      };
+    }
+
+    const sumScore = rows.reduce((acc, r) => acc + Number(r.myScore), 0);
+    const gamesCount = rows.length;
+    const winsCount = rows.filter(
+      (r) => Number(r.myScore) > Number(r.opponentScore),
+    ).length;
+    const lossesCount = rows.filter(
+      (r) => Number(r.myScore) < Number(r.opponentScore),
+    ).length;
+    const drawsCount = rows.filter(
+      (r) => Number(r.myScore) === Number(r.opponentScore),
+    ).length;
+
+    return {
+      sumScore,
+      avgScores: Math.round((sumScore / gamesCount) * 100) / 100, // округление до сотых
+      gamesCount,
+      winsCount,
+      lossesCount,
+      drawsCount,
+    };
   }
 
   private async mapToView(game: Game): Promise<GamePairViewDto> {
